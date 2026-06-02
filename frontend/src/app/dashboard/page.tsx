@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 // ─── Mock Data ─────────────────────────────────────────────────
 const STATS = [
@@ -101,6 +102,7 @@ export default function RecruiterDashboard() {
   const [activeFilter, setActiveFilter] = useState<Rating | "All">("All");
   const [sortBy, setSortBy] = useState<"name" | "date" | "rating">("date");
 
+  const router = useRouter();
   const filtered = CANDIDATES.filter((c) => {
     const matchSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -239,7 +241,7 @@ export default function RecruiterDashboard() {
               </thead>
               <tbody className="divide-y divide-white/[0.03]">
                 {filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-white/[0.02] transition-colors group">
+                  <tr key={c.id} onClick={() => router.push(`/dashboard/candidates/${c.id}`)} className="hover:bg-white/[0.02] transition-colors group cursor-pointer">
                     {/* Candidate */}
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
