@@ -5,7 +5,7 @@ A conversational AI platform for conducting human-like voice interviews.
 ## Structure
 
 ```
-ai-voice-platform/
+voxhire/
 ├── backend/          # FastAPI — core platform + recruitment modules
 ├── frontend/         # Next.js — recruiter dashboard + browser interview
 └── docs/             # Architecture decisions, API contracts
