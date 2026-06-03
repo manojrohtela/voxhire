@@ -1,6 +1,6 @@
 """
-Auth service — password hashing, JWT, in-memory user/org store.
-Replace in-memory dicts with DB queries when Supabase/PostgreSQL is connected.
+Auth service — DB-backed using SQLAlchemy async.
+Replaces in-memory store from previous version.
 """
 
 import uuid
@@ -10,57 +10,35 @@ from typing import Optional
 
 import bcrypt
 from jose import jwt, JWTError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.config import settings
-from app.modules.auth.models import UserRole
+from app.db.models import Organization, User, Invite, UserRole
 
-
-# ─── In-memory store (swap with DB later) ──────────────────────
-# Structure: { user_id: {...user_data} }
-USERS: dict[str, dict] = {}
-# Structure: { org_id: {...org_data} }
-ORGS: dict[str, dict] = {}
-# Structure: { email: user_id }
-EMAIL_INDEX: dict[str, str] = {}
-# Structure: { invite_token: {...invite_data} }
-INVITES: dict[str, dict] = {}
-
-
-# ─── Helpers ───────────────────────────────────────────────────
 
 def slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
-
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
 
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
-
 def create_access_token(user_id: str, org_id: str, role: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {
-        "sub": user_id,
-        "org_id": org_id,
-        "role": role,
-        "type": "access",
-        "exp": expire,
-    }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
+    return jwt.encode(
+        {"sub": user_id, "org_id": org_id, "role": role, "type": "access", "exp": expire},
+        settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
 
 def create_refresh_token(user_id: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    payload = {
-        "sub": user_id,
-        "type": "refresh",
-        "exp": expire,
-    }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-
+    return jwt.encode(
+        {"sub": user_id, "type": "refresh", "exp": expire},
+        settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
 
 def decode_token(token: str) -> Optional[dict]:
     try:
@@ -69,143 +47,97 @@ def decode_token(token: str) -> Optional[dict]:
         return None
 
 
-# ─── Auth operations ───────────────────────────────────────────
-
-def create_org_and_admin(org_name: str, admin_name: str, email: str, password: str) -> dict:
-    """Create a new organization and its admin user."""
-    if email in EMAIL_INDEX:
+async def create_org_and_admin(db: AsyncSession, org_name: str, admin_name: str, email: str, password: str) -> User:
+    result = await db.execute(select(User).where(User.email == email))
+    if result.scalar_one_or_none():
         raise ValueError("Email already registered")
-
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters")
 
-    org_id = str(uuid.uuid4())
-    user_id = str(uuid.uuid4())
-    slug = slugify(org_name)
-
-    # Ensure slug uniqueness
-    existing_slugs = {o["slug"] for o in ORGS.values()}
-    base_slug = slug
+    base_slug = slugify(org_name)
+    slug = base_slug
     counter = 1
-    while slug in existing_slugs:
+    while True:
+        result = await db.execute(select(Organization).where(Organization.slug == slug))
+        if not result.scalar_one_or_none():
+            break
         slug = f"{base_slug}-{counter}"
         counter += 1
 
-    ORGS[org_id] = {
-        "id": org_id,
-        "name": org_name,
-        "slug": slug,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
+    org = Organization(id=str(uuid.uuid4()), name=org_name, slug=slug)
+    db.add(org)
+    await db.flush()
 
-    USERS[user_id] = {
-        "id": user_id,
-        "name": admin_name,
-        "email": email,
-        "password_hash": hash_password(password),
-        "role": UserRole.ORG_ADMIN,
-        "org_id": org_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-    EMAIL_INDEX[email] = user_id
-    return USERS[user_id]
-
-
-def login_user(email: str, password: str) -> dict:
-    """Validate credentials and return user dict."""
-    user_id = EMAIL_INDEX.get(email)
-    if not user_id:
-        raise ValueError("Invalid email or password")
-
-    user = USERS.get(user_id)
-    if not user or not verify_password(password, user["password_hash"]):
-        raise ValueError("Invalid email or password")
-
+    user = User(id=str(uuid.uuid4()), org_id=org.id, name=admin_name, email=email,
+                password_hash=hash_password(password), role=UserRole.ORG_ADMIN)
+    db.add(user)
+    await db.flush()
     return user
 
 
-def get_user_by_id(user_id: str) -> Optional[dict]:
-    return USERS.get(user_id)
+async def login_user(db: AsyncSession, email: str, password: str) -> User:
+    result = await db.execute(select(User).where(User.email == email, User.is_active == True))
+    user = result.scalar_one_or_none()
+    if not user or not verify_password(password, user.password_hash):
+        raise ValueError("Invalid email or password")
+    user.last_login = datetime.now(timezone.utc)
+    await db.flush()
+    return user
 
 
-def get_org_by_id(org_id: str) -> Optional[dict]:
-    return ORGS.get(org_id)
+async def get_user_by_id(db: AsyncSession, user_id: str) -> Optional[User]:
+    result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
 
 
-def build_token_response(user: dict) -> dict:
-    """Build full token response with user + org info."""
-    org = ORGS[user["org_id"]]
-    access_token = create_access_token(user["id"], user["org_id"], user["role"])
-    refresh_token = create_refresh_token(user["id"])
+async def get_org_by_id(db: AsyncSession, org_id: str) -> Optional[Organization]:
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    return result.scalar_one_or_none()
 
+
+async def build_token_response(db: AsyncSession, user: User) -> dict:
+    org = await get_org_by_id(db, user.org_id)
     return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
+        "access_token": create_access_token(user.id, user.org_id, user.role),
+        "refresh_token": create_refresh_token(user.id),
         "token_type": "bearer",
-        "user": {
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"],
-            "role": user["role"],
-            "org": {
-                "id": org["id"],
-                "name": org["name"],
-                "slug": org["slug"],
-            },
-        },
+        "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role,
+                 "org": {"id": org.id, "name": org.name, "slug": org.slug}},
     }
 
 
-# ─── Invite operations ─────────────────────────────────────────
-
-def create_invite(org_id: str, invited_by: str, email: str, name: str) -> dict:
-    """Create a recruiter invite token."""
-    if email in EMAIL_INDEX:
+async def create_invite(db: AsyncSession, org_id: str, invited_by: str, email: str, name: str) -> Invite:
+    result = await db.execute(select(User).where(User.email == email))
+    if result.scalar_one_or_none():
         raise ValueError("This email is already registered")
-
-    invite_token = str(uuid.uuid4())
-    INVITES[invite_token] = {
-        "token": invite_token,
-        "org_id": org_id,
-        "invited_by": invited_by,
-        "email": email,
-        "name": name,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "used": False,
-    }
-    return INVITES[invite_token]
+    invite = Invite(id=str(uuid.uuid4()), token=str(uuid.uuid4()), org_id=org_id,
+                    invited_by=invited_by, email=email, name=name,
+                    expires_at=datetime.now(timezone.utc) + timedelta(days=7))
+    db.add(invite)
+    await db.flush()
+    return invite
 
 
-def accept_invite(token: str, name: str, password: str) -> dict:
-    """Accept an invite and create recruiter account."""
-    invite = INVITES.get(token)
+async def accept_invite(db: AsyncSession, token: str, name: str, password: str) -> User:
+    result = await db.execute(select(Invite).where(Invite.token == token))
+    invite = result.scalar_one_or_none()
     if not invite:
         raise ValueError("Invalid or expired invite link")
-    if invite["used"]:
+    if invite.is_used:
         raise ValueError("This invite has already been used")
+    if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
+        raise ValueError("This invite has expired")
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters")
 
-    user_id = str(uuid.uuid4())
-    USERS[user_id] = {
-        "id": user_id,
-        "name": name,
-        "email": invite["email"],
-        "password_hash": hash_password(password),
-        "role": UserRole.RECRUITER,
-        "org_id": invite["org_id"],
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    EMAIL_INDEX[invite["email"]] = user_id
-    invite["used"] = True
-
-    return USERS[user_id]
+    user = User(id=str(uuid.uuid4()), org_id=invite.org_id, name=name, email=invite.email,
+                password_hash=hash_password(password), role=UserRole.RECRUITER)
+    db.add(user)
+    invite.is_used = True
+    await db.flush()
+    return user
 
 
-def get_org_recruiters(org_id: str) -> list[dict]:
-    """Get all recruiters in an org."""
-    return [
-        u for u in USERS.values()
-        if u["org_id"] == org_id and u["role"] == UserRole.RECRUITER
-    ]
+async def get_org_recruiters(db: AsyncSession, org_id: str) -> list:
+    result = await db.execute(select(User).where(User.org_id == org_id, User.role == UserRole.RECRUITER))
+    return list(result.scalars().all())

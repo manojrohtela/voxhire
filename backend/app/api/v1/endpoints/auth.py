@@ -1,146 +1,83 @@
 """
-Auth API endpoints.
-POST /api/v1/auth/signup     — Create org + admin
-POST /api/v1/auth/login      — Login
-POST /api/v1/auth/refresh    — Refresh access token
-GET  /api/v1/auth/me         — Get current user
-POST /api/v1/auth/invite     — Invite recruiter (admin only)
-POST /api/v1/auth/accept     — Accept invite + set password
-GET  /api/v1/auth/recruiters — List org recruiters (admin only)
+Auth API endpoints — DB-backed.
 """
 
 from fastapi import APIRouter, HTTPException, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.database import get_db
 from app.modules.auth import service
 from app.modules.auth.models import (
     OrgSignupRequest, LoginRequest, InviteRecruiterRequest,
-    AcceptInviteRequest, RefreshTokenRequest,
-    TokenResponse, InviteResponse, MessageResponse, UserResponse, OrgResponse,
+    AcceptInviteRequest, RefreshTokenRequest, TokenResponse, InviteResponse,
 )
 from app.modules.auth.dependencies import get_current_user, require_org_admin
-from app.modules.auth.service import decode_token, get_user_by_id, build_token_response
 
 router = APIRouter()
+BASE_URL = "https://voxhire.vercel.app"
 
-BASE_URL = "https://voxhire.vercel.app"  # update in prod via env
 
-
-# ─── Org Signup ────────────────────────────────────────────────
 @router.post("/signup", response_model=TokenResponse, status_code=201)
-def signup(body: OrgSignupRequest):
-    """Create a new organization and admin account."""
+async def signup(body: OrgSignupRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user = service.create_org_and_admin(
-            org_name=body.org_name,
-            admin_name=body.admin_name,
-            email=body.email,
-            password=body.password,
-        )
+        user = await service.create_org_and_admin(db, body.org_name, body.admin_name, body.email, body.password)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(400, detail=str(e))
+    return await service.build_token_response(db, user)
 
-    return service.build_token_response(user)
 
-
-# ─── Login ─────────────────────────────────────────────────────
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest):
-    """Login with email + password."""
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user = service.login_user(email=body.email, password=body.password)
+        user = await service.login_user(db, body.email, body.password)
     except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(401, detail=str(e))
+    return await service.build_token_response(db, user)
 
-    return service.build_token_response(user)
 
-
-# ─── Refresh Token ─────────────────────────────────────────────
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(body: RefreshTokenRequest):
-    """Exchange refresh token for new access token."""
-    payload = decode_token(body.refresh_token)
+async def refresh(body: RefreshTokenRequest, db: AsyncSession = Depends(get_db)):
+    payload = service.decode_token(body.refresh_token)
     if not payload or payload.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-
-    user = get_user_by_id(payload["sub"])
+        raise HTTPException(401, detail="Invalid refresh token")
+    user = await service.get_user_by_id(db, payload["sub"])
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(401, detail="User not found")
+    return await service.build_token_response(db, user)
 
-    return build_token_response(user)
 
-
-# ─── Me ────────────────────────────────────────────────────────
 @router.get("/me")
-def me(current_user: dict = Depends(get_current_user)):
-    """Get current user info."""
-    org = service.get_org_by_id(current_user["org_id"])
-    return {
-        "id": current_user["id"],
-        "name": current_user["name"],
-        "email": current_user["email"],
-        "role": current_user["role"],
-        "org": {
-            "id": org["id"],
-            "name": org["name"],
-            "slug": org["slug"],
-        },
-    }
+async def me(current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    org = await service.get_org_by_id(db, current_user["org_id"])
+    return {"id": current_user["id"], "name": current_user["name"],
+            "email": current_user["email"], "role": current_user["role"],
+            "org": {"id": org.id, "name": org.name, "slug": org.slug}}
 
 
-# ─── Invite Recruiter ──────────────────────────────────────────
 @router.post("/invite", response_model=InviteResponse)
-def invite_recruiter(
-    body: InviteRecruiterRequest,
-    admin: dict = Depends(require_org_admin),
-):
-    """Admin invites a recruiter to their org."""
+async def invite_recruiter(body: InviteRecruiterRequest, admin: dict = Depends(require_org_admin), db: AsyncSession = Depends(get_db)):
     try:
-        invite = service.create_invite(
-            org_id=admin["org_id"],
-            invited_by=admin["id"],
-            email=body.email,
-            name=body.name,
-        )
+        invite = await service.create_invite(db, admin["org_id"], admin["id"], body.email, body.name)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    invite_link = f"{BASE_URL}/auth/accept?token={invite['token']}"
+        raise HTTPException(400, detail=str(e))
     return {
-        "invite_token": invite["token"],
-        "email": invite["email"],
-        "invite_link": invite_link,
-        "message": f"Invite created for {body.email}. In production, this link would be emailed automatically.",
+        "invite_token": invite.token,
+        "email": invite.email,
+        "invite_link": f"{BASE_URL}/auth/accept?token={invite.token}",
+        "message": f"Invite created for {body.email}.",
     }
 
 
-# ─── Accept Invite ─────────────────────────────────────────────
 @router.post("/accept", response_model=TokenResponse)
-def accept_invite(body: AcceptInviteRequest):
-    """Accept an invite and create recruiter account."""
+async def accept_invite(body: AcceptInviteRequest, db: AsyncSession = Depends(get_db)):
     try:
-        user = service.accept_invite(
-            token=body.token,
-            name=body.name,
-            password=body.password,
-        )
+        user = await service.accept_invite(db, body.token, body.name, body.password)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(400, detail=str(e))
+    return await service.build_token_response(db, user)
 
-    return build_token_response(user)
 
-
-# ─── List Recruiters ───────────────────────────────────────────
 @router.get("/recruiters")
-def list_recruiters(admin: dict = Depends(require_org_admin)):
-    """Get all recruiters in the org."""
-    recruiters = service.get_org_recruiters(admin["org_id"])
-    return [
-        {
-            "id": r["id"],
-            "name": r["name"],
-            "email": r["email"],
-            "role": r["role"],
-            "created_at": r["created_at"],
-        }
-        for r in recruiters
-    ]
+async def list_recruiters(admin: dict = Depends(require_org_admin), db: AsyncSession = Depends(get_db)):
+    recruiters = await service.get_org_recruiters(db, admin["org_id"])
+    return [{"id": r.id, "name": r.name, "email": r.email, "role": r.role, "created_at": r.created_at} for r in recruiters]
