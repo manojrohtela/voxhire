@@ -1,3 +1,27 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Semantic color tokens ─────────────────────────────────────────────── */
+/* All values are RGB triplets so Tailwind opacity modifiers work:           */
+/*   bg-background/80  →  rgb(var(--bg) / 0.8)                               */
+
+:root {
+  /* Light theme */
+  --bg:       245 245 251;   /* page background   */
+  --bg-card:  255 255 255;   /* card / panel      */
+  --bg-raised:235 235 245;   /* elevated surface  */
+  --bg-nav:   248 248 254;   /* sidebar / nav     */
+  --fg:       12  12  20;    /* text + overlay base (near-black) */
+  --brand:    108 99  255;   /* #6c63ff           */
+}
+
+.dark {
+  /* Dark theme */
+  --bg:       7   7   13;    /* #07070d           */
+  --bg-card:  12  12  20;    /* #0c0c14           */
+  --bg-raised:19  19  26;    /* #13131a           */
+  --bg-nav:   9   9   15;    /* #09090f           */
+  --fg:       255 255 255;   /* white             */
+  --brand:    108 99  255;   /* #6c63ff           */
+}

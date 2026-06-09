@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_RECRUITER = [
   {
@@ -99,30 +100,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     href === "/dashboard" ? pathname === href : pathname.startsWith(href);
 
   return (
-    <div className="flex h-screen bg-[#07070d] overflow-hidden font-sans">
+    <div className="flex h-screen bg-background overflow-hidden font-sans">
       {/* Sidebar */}
-      <aside className="w-56 shrink-0 flex flex-col border-r border-white/[0.05] bg-[#09090f]">
+      <aside className="w-56 shrink-0 flex flex-col border-r border-faint bg-nav">
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-white/[0.05]">
+        <div className="px-5 py-5 border-b border-faint">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
               </svg>
             </div>
-            <span className="text-white font-semibold text-sm tracking-tight">VoxHire</span>
+            <span className="text-foreground font-semibold text-sm tracking-tight">VoxHire</span>
           </div>
         </div>
 
         {/* View switcher */}
-        <div className="px-3 py-3 border-b border-white/[0.05]">
-          <div className="flex bg-white/[0.04] rounded-lg p-0.5">
+        <div className="px-3 py-3 border-b border-faint">
+          <div className="flex bg-ink/[0.04] rounded-lg p-0.5">
             <button
               onClick={() => setView("recruiter")}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${
                 view === "recruiter"
-                  ? "bg-white/10 text-white shadow-sm"
-                  : "text-white/30 hover:text-white/50"
+                  ? "bg-ink/10 text-foreground shadow-sm"
+                  : "text-foreground-4 hover:text-foreground-3"
               }`}
             >
               Recruiter
@@ -131,8 +132,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={() => setView("admin")}
               className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${
                 view === "admin"
-                  ? "bg-white/10 text-white shadow-sm"
-                  : "text-white/30 hover:text-white/50"
+                  ? "bg-ink/10 text-foreground shadow-sm"
+                  : "text-foreground-4 hover:text-foreground-3"
               }`}
             >
               Admin
@@ -142,7 +143,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <p className="text-white/20 text-[10px] font-semibold uppercase tracking-widest px-2 mb-2">
+          <p className="text-foreground-5 text-[10px] font-semibold uppercase tracking-widest px-2 mb-2">
             {view === "recruiter" ? "Workspace" : "Platform"}
           </p>
           {(view === "recruiter" ? NAV_RECRUITER : NAV_ADMIN).map((item) => (
@@ -152,10 +153,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all group ${
                 isActive(item.href)
                   ? "bg-violet-500/15 text-violet-300 border border-violet-500/20"
-                  : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
+                  : "text-foreground-3 hover:text-foreground-2 hover:bg-ink/[0.04]"
               }`}
             >
-              <span className={isActive(item.href) ? "text-violet-400" : "text-white/25 group-hover:text-white/50"}>
+              <span className={isActive(item.href) ? "text-violet-400" : "text-foreground-5 group-hover:text-foreground-3"}>
                 {item.icon}
               </span>
               {item.label}
@@ -163,15 +164,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ))}
         </nav>
 
-        {/* User */}
-        <div className="px-3 py-4 border-t border-white/[0.05]">
+        {/* Theme toggle + User */}
+        <div className="px-3 py-4 border-t border-faint space-y-3">
+          <ThemeToggle />
           <div className="flex items-center gap-3 px-2">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
               M
             </div>
             <div className="min-w-0">
-              <p className="text-white/70 text-xs font-medium truncate">Manoj R.</p>
-              <p className="text-white/25 text-[10px] truncate">{view === "admin" ? "Admin" : "Recruiter"}</p>
+              <p className="text-foreground-2 text-xs font-medium truncate">Manoj R.</p>
+              <p className="text-foreground-4 text-[10px] truncate">{view === "admin" ? "Admin" : "Recruiter"}</p>
             </div>
           </div>
         </div>

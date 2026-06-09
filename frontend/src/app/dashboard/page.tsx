@@ -12,7 +12,7 @@ const RATING_STYLE: Record<string, string> = {
   Strong: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   Medium: "text-amber-400 bg-amber-500/10 border-amber-500/20",
   Weak: "text-red-400 bg-red-500/10 border-red-500/20",
-  Pending: "text-white/30 bg-white/5 border-white/10",
+  Pending: "text-foreground-3 bg-ink/5 border-base",
   Scheduled: "text-violet-400 bg-violet-500/10 border-violet-500/20",
 };
 
@@ -62,12 +62,12 @@ export default function RecruiterDashboard() {
   const totalInterviewed = stats.ratingBreakdown.Strong + stats.ratingBreakdown.Medium + stats.ratingBreakdown.Weak;
 
   return (
-    <div className="min-h-full bg-[#07070d]">
+    <div className="min-h-full bg-background">
       {/* Top bar */}
-      <div className="sticky top-0 z-20 px-7 py-4 border-b border-white/[0.05] bg-[#07070d]/80 backdrop-blur flex items-center justify-between">
+      <div className="sticky top-0 z-20 px-7 py-4 border-b border-faint bg-background/80 backdrop-blur flex items-center justify-between">
         <div>
-          <h1 className="text-white font-semibold text-lg tracking-tight">Dashboard</h1>
-          <p className="text-white/25 text-xs mt-0.5">
+          <h1 className="text-foreground font-semibold text-lg tracking-tight">Dashboard</h1>
+          <p className="text-foreground-4 text-xs mt-0.5">
             {user?.org?.name} · {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
         </div>
@@ -83,11 +83,11 @@ export default function RecruiterDashboard() {
           {STATS.map((stat) => {
             const c = COLOR_MAP[stat.color];
             return (
-              <div key={stat.label} className="bg-[#0c0c14] border border-white/[0.06] rounded-2xl p-5 hover:border-white/10 transition-colors">
+              <div key={stat.label} className="bg-surface border border-base rounded-2xl p-5 hover:border-strong transition-colors">
                 <div className={`w-9 h-9 rounded-xl border flex items-center justify-center mb-4 ${c.icon}`}>{stat.icon}</div>
                 <p className={`text-3xl font-bold tracking-tight ${c.stat}`}>{stat.value}</p>
-                <p className="text-white/40 text-xs mt-1">{stat.label}</p>
-                <p className="text-white/20 text-xs mt-2">{stat.delta}</p>
+                <p className="text-foreground-3 text-xs mt-1">{stat.label}</p>
+                <p className="text-foreground-4 text-xs mt-2">{stat.delta}</p>
               </div>
             );
           })}
@@ -95,10 +95,10 @@ export default function RecruiterDashboard() {
 
         {/* Pipeline bar */}
         {totalInterviewed > 0 && (
-          <div className="bg-[#0c0c14] border border-white/[0.06] rounded-2xl p-5">
+          <div className="bg-surface border border-base rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white/70 text-sm font-medium">Interview Pipeline</h2>
-              <span className="text-white/25 text-xs">{totalInterviewed} evaluated</span>
+              <h2 className="text-foreground-2 text-sm font-medium">Interview Pipeline</h2>
+              <span className="text-foreground-4 text-xs">{totalInterviewed} evaluated</span>
             </div>
             <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
               <div className="bg-emerald-500 rounded-l-full" style={{ width: `${(stats.ratingBreakdown.Strong / totalInterviewed) * 100}%` }} />
@@ -113,8 +113,8 @@ export default function RecruiterDashboard() {
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${item.color}`} />
-                  <span className="text-white/40 text-xs">{item.label}</span>
-                  <span className="text-white/60 text-xs font-medium">{item.count}</span>
+                  <span className="text-foreground-3 text-xs">{item.label}</span>
+                  <span className="text-foreground-2 text-xs font-medium">{item.count}</span>
                 </div>
               ))}
             </div>
@@ -122,15 +122,15 @@ export default function RecruiterDashboard() {
         )}
 
         {/* Candidates table */}
-        <div className="bg-[#0c0c14] border border-white/[0.06] rounded-2xl overflow-hidden">
+        <div className="bg-surface border border-base rounded-2xl overflow-hidden">
           {/* Toolbar */}
-          <div className="px-5 py-4 border-b border-white/[0.05] flex flex-col sm:flex-row gap-3">
+          <div className="px-5 py-4 border-b border-faint flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               <input
                 type="text" placeholder="Search candidates, roles, skills..."
                 value={search} onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-white/[0.04] border border-white/[0.07] rounded-lg pl-9 pr-4 py-2 text-white/70 text-sm placeholder-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+                className="w-full bg-ink/[0.04] border border-base rounded-lg pl-9 pr-4 py-2 text-foreground-2 text-sm placeholder-foreground-5 focus:outline-none focus:border-violet-500/50 transition-colors"
               />
             </div>
             <div className="flex gap-1.5 flex-wrap">
@@ -138,8 +138,8 @@ export default function RecruiterDashboard() {
                 <button key={f} onClick={() => setActiveFilter(f)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                     activeFilter === f
-                      ? f === "All" ? "bg-white/10 text-white border-white/10" : RATING_STYLE[f]
-                      : "text-white/25 border-transparent hover:text-white/40"
+                      ? f === "All" ? "bg-ink/10 text-foreground border-base" : RATING_STYLE[f]
+                      : "text-foreground-4 border-transparent hover:text-foreground-3"
                   }`}>
                   {f}
                 </button>
@@ -151,19 +151,19 @@ export default function RecruiterDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/[0.04]">
+                <tr className="border-b border-faint">
                   {["Candidate", "Role", "Experience", "Interview", "Rating", ""].map((h) => (
-                    <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-white/20 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-foreground-4 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.03]">
+              <tbody className="divide-y divide-ink/[0.03]">
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <tr key={i}>
                       {Array.from({ length: 6 }).map((_, j) => (
                         <td key={j} className="px-5 py-4">
-                          <div className="h-4 bg-white/[0.04] rounded animate-pulse" style={{ width: j === 0 ? "120px" : j === 5 ? "60px" : "80px" }} />
+                          <div className="h-4 bg-ink/[0.04] rounded animate-pulse" style={{ width: j === 0 ? "120px" : j === 5 ? "60px" : "80px" }} />
                         </td>
                       ))}
                     </tr>
@@ -172,10 +172,10 @@ export default function RecruiterDashboard() {
                   <tr>
                     <td colSpan={6} className="px-5 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-white/[0.04] border border-white/[0.07] flex items-center justify-center">
-                          <svg className="w-5 h-5 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <div className="w-10 h-10 rounded-full bg-ink/[0.04] border border-base flex items-center justify-center">
+                          <svg className="w-5 h-5 text-foreground-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         </div>
-                        <p className="text-white/20 text-sm">No candidates yet</p>
+                        <p className="text-foreground-4 text-sm">No candidates yet</p>
                         <Link href="/resume" className="text-violet-400 text-xs hover:text-violet-300 transition-colors">Upload first resume →</Link>
                       </div>
                     </td>
@@ -186,29 +186,29 @@ export default function RecruiterDashboard() {
                     const latestSession = c.interview_sessions?.[0];
                     return (
                       <tr key={c.id} onClick={() => router.push(`/dashboard/candidates/${c.id}`)}
-                        className="hover:bg-white/[0.02] transition-colors group cursor-pointer">
+                        className="hover:bg-ink/[0.02] transition-colors group cursor-pointer">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500/30 to-indigo-500/30 border border-violet-500/20 flex items-center justify-center text-violet-300 text-xs font-bold shrink-0">
                               {c.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                             </div>
                             <div>
-                              <p className="text-white/80 text-sm font-medium">{c.name}</p>
-                              <p className="text-white/25 text-xs">{c.email}</p>
+                              <p className="text-foreground text-sm font-medium">{c.name}</p>
+                              <p className="text-foreground-4 text-xs">{c.email}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-3.5 text-white/50 text-sm">{c.applied_role || "—"}</td>
-                        <td className="px-5 py-3.5 text-white/40 text-sm">{c.total_experience_years ? `${c.total_experience_years} yrs` : "—"}</td>
+                        <td className="px-5 py-3.5 text-foreground-2 text-sm">{c.applied_role || "—"}</td>
+                        <td className="px-5 py-3.5 text-foreground-3 text-sm">{c.total_experience_years ? `${c.total_experience_years} yrs` : "—"}</td>
                         <td className="px-5 py-3.5">
                           {latestSession ? (
                             <div>
-                              <p className="text-white/40 text-xs capitalize">{latestSession.status}</p>
+                              <p className="text-foreground-3 text-xs capitalize">{latestSession.status}</p>
                               {latestSession.scheduled_at && (
-                                <p className="text-white/20 text-xs">{new Date(latestSession.scheduled_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                                <p className="text-foreground-4 text-xs">{new Date(latestSession.scheduled_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
                               )}
                             </div>
-                          ) : <span className="text-white/20 text-xs">Not scheduled</span>}
+                          ) : <span className="text-foreground-4 text-xs">Not scheduled</span>}
                         </td>
                         <td className="px-5 py-3.5">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-medium ${RATING_STYLE[rating] || RATING_STYLE["Pending"]}`}>
@@ -217,7 +217,7 @@ export default function RecruiterDashboard() {
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="px-3 py-1.5 bg-white/[0.05] hover:bg-white/10 border border-white/[0.07] rounded-lg text-white/50 text-xs transition-colors">
+                            <button className="px-3 py-1.5 bg-ink/[0.05] hover:bg-ink/10 border border-base rounded-lg text-foreground-2 text-xs transition-colors">
                               View
                             </button>
                             {!latestSession && (
@@ -236,8 +236,8 @@ export default function RecruiterDashboard() {
             </table>
           </div>
 
-          <div className="px-5 py-3 border-t border-white/[0.04] flex items-center justify-between">
-            <p className="text-white/20 text-xs">{candidates.length} of {total} candidates</p>
+          <div className="px-5 py-3 border-t border-faint flex items-center justify-between">
+            <p className="text-foreground-4 text-xs">{candidates.length} of {total} candidates</p>
           </div>
         </div>
       </div>

@@ -30,7 +30,7 @@ const MONTHLY_DATA = [
 const PLAN_STYLE: Record<string, string> = {
   Enterprise: "text-violet-400 bg-violet-500/10 border-violet-500/20",
   Pro: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  Starter: "text-white/40 bg-white/5 border-white/10",
+  Starter: "text-foreground-3 bg-ink/5 border-base",
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -57,12 +57,12 @@ export default function AdminDashboard() {
   );
 
   return (
-    <div className="min-h-full bg-[#07070d]">
+    <div className="min-h-full bg-background">
       {/* Top bar */}
-      <div className="sticky top-0 z-20 px-7 py-4 border-b border-white/[0.05] bg-[#07070d]/80 backdrop-blur flex items-center justify-between">
+      <div className="sticky top-0 z-20 px-7 py-4 border-b border-faint bg-background/80 backdrop-blur flex items-center justify-between">
         <div>
-          <h1 className="text-white font-semibold text-lg tracking-tight">Admin — Platform Overview</h1>
-          <p className="text-white/25 text-xs mt-0.5">All data across all recruiters and companies</p>
+          <h1 className="text-foreground font-semibold text-lg tracking-tight">Admin — Platform Overview</h1>
+          <p className="text-foreground-4 text-xs mt-0.5">All data across all recruiters and companies</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -76,10 +76,10 @@ export default function AdminDashboard() {
           {PLATFORM_STATS.map((stat) => {
             const c = COLOR_MAP[stat.color];
             return (
-              <div key={stat.label} className="bg-[#0c0c14] border border-white/[0.06] rounded-2xl p-5 hover:border-white/10 transition-colors">
+              <div key={stat.label} className="bg-surface border border-base rounded-2xl p-5 hover:border-strong transition-colors">
                 <p className={`text-3xl font-bold tracking-tight ${c.val}`}>{stat.value}</p>
-                <p className="text-white/40 text-xs mt-1">{stat.label}</p>
-                <p className="text-white/20 text-xs mt-2">{stat.delta}</p>
+                <p className="text-foreground-3 text-xs mt-1">{stat.label}</p>
+                <p className="text-foreground-4 text-xs mt-2">{stat.delta}</p>
               </div>
             );
           })}
@@ -88,10 +88,10 @@ export default function AdminDashboard() {
         {/* Charts row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Monthly interviews bar chart */}
-          <div className="lg:col-span-2 bg-[#0c0c14] border border-white/[0.06] rounded-2xl p-5">
+          <div className="lg:col-span-2 bg-surface border border-base rounded-2xl p-5">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-white/70 text-sm font-medium">Monthly Interviews</h2>
-              <span className="text-white/20 text-xs">2026</span>
+              <h2 className="text-foreground-2 text-sm font-medium">Monthly Interviews</h2>
+              <span className="text-foreground-4 text-xs">2026</span>
             </div>
             <div className="flex items-end gap-3 h-32">
               {MONTHLY_DATA.map((d) => {
@@ -99,18 +99,18 @@ export default function AdminDashboard() {
                 const isCurrentMonth = d.month === "Jun";
                 return (
                   <div key={d.month} className="flex-1 flex flex-col items-center gap-2">
-                    <span className="text-white/30 text-xs">{d.interviews}</span>
+                    <span className="text-foreground-3 text-xs">{d.interviews}</span>
                     <div className="w-full flex items-end" style={{ height: "80px" }}>
                       <div
                         className={`w-full rounded-t-lg transition-all ${
                           isCurrentMonth
                             ? "bg-violet-500/60 border border-violet-500/30"
-                            : "bg-white/[0.07] hover:bg-white/[0.12]"
+                            : "bg-ink/[0.07] hover:bg-ink/[0.12]"
                         }`}
                         style={{ height: `${pct}%` }}
                       />
                     </div>
-                    <span className={`text-xs ${isCurrentMonth ? "text-violet-400" : "text-white/20"}`}>{d.month}</span>
+                    <span className={`text-xs ${isCurrentMonth ? "text-violet-400" : "text-foreground-4"}`}>{d.month}</span>
                   </div>
                 );
               })}
@@ -118,22 +118,22 @@ export default function AdminDashboard() {
           </div>
 
           {/* Plan distribution */}
-          <div className="bg-[#0c0c14] border border-white/[0.06] rounded-2xl p-5">
-            <h2 className="text-white/70 text-sm font-medium mb-5">Plan Distribution</h2>
+          <div className="bg-surface border border-base rounded-2xl p-5">
+            <h2 className="text-foreground-2 text-sm font-medium mb-5">Plan Distribution</h2>
             <div className="space-y-4">
               {[
                 { plan: "Enterprise", count: 2, total: 23, color: "bg-violet-500" },
                 { plan: "Pro", count: 11, total: 23, color: "bg-blue-500" },
-                { plan: "Starter", count: 10, total: 23, color: "bg-white/20" },
+                { plan: "Starter", count: 10, total: 23, color: "bg-ink/20" },
               ].map((item) => {
                 const pct = Math.round((item.count / item.total) * 100);
                 return (
                   <div key={item.plan}>
                     <div className="flex justify-between mb-1.5">
-                      <span className="text-white/40 text-xs">{item.plan}</span>
-                      <span className="text-white/30 text-xs">{item.count} · {pct}%</span>
+                      <span className="text-foreground-3 text-xs">{item.plan}</span>
+                      <span className="text-foreground-4 text-xs">{item.count} · {pct}%</span>
                     </div>
-                    <div className="h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-ink/[0.05] rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${item.color}`} style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -142,8 +142,8 @@ export default function AdminDashboard() {
             </div>
 
             {/* Module health */}
-            <div className="mt-6 pt-5 border-t border-white/[0.05]">
-              <p className="text-white/20 text-xs uppercase tracking-wider mb-3">Module Health</p>
+            <div className="mt-6 pt-5 border-t border-faint">
+              <p className="text-foreground-4 text-xs uppercase tracking-wider mb-3">Module Health</p>
               <div className="space-y-2">
                 {[
                   { label: "Voice Runtime", status: "Operational" },
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
                   { label: "Scheduling", status: "Building" },
                 ].map((m) => (
                   <div key={m.label} className="flex items-center justify-between">
-                    <span className="text-white/35 text-xs">{m.label}</span>
+                    <span className="text-foreground-3 text-xs">{m.label}</span>
                     <span className={`text-xs ${m.status === "Operational" ? "text-emerald-400" : "text-amber-400"}`}>
                       {m.status}
                     </span>
@@ -164,11 +164,11 @@ export default function AdminDashboard() {
         </div>
 
         {/* Recruiters table */}
-        <div className="bg-[#0c0c14] border border-white/[0.06] rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-white/[0.05] flex items-center justify-between gap-4">
-            <h2 className="text-white/70 text-sm font-medium shrink-0">All Recruiters</h2>
+        <div className="bg-surface border border-base rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-faint flex items-center justify-between gap-4">
+            <h2 className="text-foreground-2 text-sm font-medium shrink-0">All Recruiters</h2>
             <div className="relative max-w-xs w-full">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -176,7 +176,7 @@ export default function AdminDashboard() {
                 placeholder="Search recruiters..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-white/[0.04] border border-white/[0.07] rounded-lg pl-8 pr-4 py-2 text-white/60 text-xs placeholder-white/20 focus:outline-none focus:border-violet-500/40 transition-colors"
+                className="w-full bg-ink/[0.04] border border-base rounded-lg pl-8 pr-4 py-2 text-foreground-2 text-xs placeholder-foreground-4 focus:outline-none focus:border-violet-500/40 transition-colors"
               />
             </div>
           </div>
@@ -184,35 +184,35 @@ export default function AdminDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-white/[0.04]">
+                <tr className="border-b border-faint">
                   {["Recruiter", "Company", "Interviews", "Strong Rate", "Plan", "Status", "Joined"].map((h) => (
-                    <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-white/20 uppercase tracking-wider">
+                    <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-foreground-4 uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.03]">
+              <tbody className="divide-y divide-ink/[0.03]">
                 {filtered.map((r) => {
                   const strongRate = Math.round((r.strong / r.interviews) * 100);
                   return (
-                    <tr key={r.name} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={r.name} className="hover:bg-ink/[0.02] transition-colors">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500/30 to-violet-500/30 border border-indigo-500/20 flex items-center justify-center text-indigo-300 text-xs font-bold shrink-0">
                             {r.name.split(" ").map((n) => n[0]).join("")}
                           </div>
-                          <span className="text-white/70 text-sm">{r.name}</span>
+                          <span className="text-foreground-2 text-sm">{r.name}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-white/40 text-sm">{r.company}</td>
-                      <td className="px-5 py-3.5 text-white/60 text-sm font-medium">{r.interviews}</td>
+                      <td className="px-5 py-3.5 text-foreground-3 text-sm">{r.company}</td>
+                      <td className="px-5 py-3.5 text-foreground-2 text-sm font-medium">{r.interviews}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+                          <div className="w-16 h-1.5 bg-ink/[0.05] rounded-full overflow-hidden">
                             <div className="h-full bg-emerald-500/60 rounded-full" style={{ width: `${strongRate}%` }} />
                           </div>
-                          <span className="text-white/40 text-xs">{strongRate}%</span>
+                          <span className="text-foreground-3 text-xs">{strongRate}%</span>
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
                           {r.status}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-white/25 text-xs">{r.joined}</td>
+                      <td className="px-5 py-3.5 text-foreground-4 text-xs">{r.joined}</td>
                     </tr>
                   );
                 })}
@@ -234,8 +234,8 @@ export default function AdminDashboard() {
             </table>
           </div>
 
-          <div className="px-5 py-3 border-t border-white/[0.04]">
-            <p className="text-white/20 text-xs">{filtered.length} recruiters · {RECRUITER_DATA.reduce((s, r) => s + r.interviews, 0)} total interviews conducted</p>
+          <div className="px-5 py-3 border-t border-faint">
+            <p className="text-foreground-4 text-xs">{filtered.length} recruiters · {RECRUITER_DATA.reduce((s, r) => s + r.interviews, 0)} total interviews conducted</p>
           </div>
         </div>
       </div>

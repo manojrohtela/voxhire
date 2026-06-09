@@ -39,7 +39,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07070d] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-violet-600/8 rounded-full blur-3xl" />
       </div>
@@ -51,11 +51,11 @@ export default function SignupPage() {
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
             </svg>
           </div>
-          <h1 className="text-white text-xl font-semibold">Create your organization</h1>
-          <p className="text-white/30 text-sm mt-1">Get started with VoxHire</p>
+          <h1 className="text-foreground text-xl font-semibold">Create your organization</h1>
+          <p className="text-foreground-3 text-sm mt-1">Get started with VoxHire</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-[#0c0c14] border border-white/[0.07] rounded-2xl p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-surface border border-base rounded-2xl p-6 space-y-4">
           {error && (
             <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">{error}</div>
           )}
@@ -66,20 +66,20 @@ export default function SignupPage() {
             { key: "email", label: "Work Email", placeholder: "you@company.com", type: "email" },
           ].map((field) => (
             <div key={field.key}>
-              <label className="block text-white/40 text-xs mb-2 font-medium">{field.label}</label>
+              <label className="block text-foreground-3 text-xs mb-2 font-medium">{field.label}</label>
               <input
                 type={field.type}
                 value={form[field.key as keyof typeof form]}
                 onChange={set(field.key)}
                 placeholder={field.placeholder}
                 required
-                className="w-full bg-[#07070d] border border-white/[0.08] rounded-xl px-4 py-3 text-white/80 text-sm placeholder-white/15 focus:outline-none focus:border-violet-500/50 transition-colors"
+                className="w-full bg-background border border-base rounded-xl px-4 py-3 text-foreground text-sm placeholder-foreground-5 focus:outline-none focus:border-violet-500/50 transition-colors"
               />
             </div>
           ))}
 
           <div>
-            <label className="block text-white/40 text-xs mb-2 font-medium">Password</label>
+            <label className="block text-foreground-3 text-xs mb-2 font-medium">Password</label>
             <div className="relative">
               <input
                 type={showPass ? "text" : "password"}
@@ -87,9 +87,9 @@ export default function SignupPage() {
                 onChange={set("password")}
                 placeholder="Min 8 characters"
                 required
-                className="w-full bg-[#07070d] border border-white/[0.08] rounded-xl px-4 py-3 text-white/80 text-sm placeholder-white/15 focus:outline-none focus:border-violet-500/50 transition-colors pr-10"
+                className="w-full bg-background border border-base rounded-xl px-4 py-3 text-foreground text-sm placeholder-foreground-5 focus:outline-none focus:border-violet-500/50 transition-colors pr-10"
               />
-              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50 transition-colors">
+              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-4 hover:text-foreground-2 transition-colors">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
               </button>
             </div>
@@ -104,7 +104,7 @@ export default function SignupPage() {
           </button>
         </form>
 
-        <p className="text-center text-white/20 text-sm mt-5">
+        <p className="text-center text-foreground-4 text-sm mt-5">
           Already have an account?{" "}
           <Link href="/auth/login" className="text-violet-400 hover:text-violet-300 transition-colors">Sign in</Link>
         </p>
