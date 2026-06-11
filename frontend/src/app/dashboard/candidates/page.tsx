@@ -535,9 +535,10 @@ function BulkUploadModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
     const state = saveStates[idx];
     if (!state?.candidateId) return;
     try {
-      const res = await apiWithAuth(`/api/v1/candidates/${state.candidateId}/jobs/${jobId}`, {
+      const raw = await apiWithAuth(`/api/v1/candidates/${state.candidateId}/jobs/${jobId}`, {
         method: "POST", body: JSON.stringify({ status: "shortlisted" }),
       });
+      const res = raw.ok ? await raw.json() : {};
       setSaveStates(p => {
         const n = [...p];
         const prev = n[idx].assignedJobIds ?? new Set<string>();
