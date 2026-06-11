@@ -224,6 +224,7 @@ async def vapi_webhook(
         candidate.screening_status = ScreeningStatus.COMPLETED.value
         await _add_event(db, candidate.id, ScreeningEventType.SCREENING_COMPLETED.value, sc.id, {
             "callOutcome": resolved_outcome,
+            "callSummary": structured.get("callSummary", ""),
             "interviewAvailability": sc.interview_availability,
             "candidateIntent": sc.candidate_intent,
         })
@@ -339,6 +340,16 @@ async def get_screening_history(
         .order_by(ScreeningInvitation.created_at.desc())
     )
     invitations = invitations_result.scalars().all()
+
+    # Auto-scheduled interview (created by webhook after screening completes)
+    interview_result = await db.execute(
+        select(InterviewSession)
+        .where(InterviewSession.candidate_id == candidate_id)
+        .order_by(InterviewSession.created_at.desc())
+        .limit(1)
+    )
+    auto_interview = interview_result.scalar_one_or_none()
+
     base_url = settings.FRONTEND_URL.rstrip("/")
 
     return {
@@ -351,6 +362,12 @@ async def get_screening_history(
         "timeline": [_event_to_dict(e) for e in events],
         "invitations": [_invitation_to_dict(inv, f"{base_url}/screening/{inv.token}") for inv in invitations],
         "latest_invitation": _invitation_to_dict(invitations[0], f"{base_url}/screening/{invitations[0].token}") if invitations else None,
+        "auto_interview": {
+            "id": auto_interview.id,
+            "interview_link": auto_interview.interview_link,
+            "status": auto_interview.status,
+            "created_at": auto_interview.created_at.isoformat() if auto_interview.created_at else None,
+        } if auto_interview else None,
     }
 
 

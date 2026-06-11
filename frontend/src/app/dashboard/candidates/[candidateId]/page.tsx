@@ -32,6 +32,7 @@ const EVENT_ICON: Record<string, string> = {
   SCREENING_INITIATED:  "📞",
   CALL_CONNECTED:       "🔗",
   SCREENING_COMPLETED:  "✅",
+  INTERVIEW_SCHEDULED:  "🗓️",
   CALLBACK_REQUESTED:   "📅",
   DECLINED:             "❌",
   CALL_DROPPED:         "📵",
@@ -50,6 +51,7 @@ interface ScreeningData {
   calls: Record<string, any>[];
   invitations: Record<string, any>[];
   timeline: Record<string, any>[];
+  auto_interview: { id: string; interview_link: string; status: string; created_at: string } | null;
 }
 
 async function fetchScreeningData(candidateId: string): Promise<ScreeningData | null> {
@@ -570,10 +572,54 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                   </div>
                 )}
 
+                {/* Auto-scheduled interview link */}
+                {screening?.auto_interview && (
+                  <div className="bg-emerald-500/5 border border-emerald-500/25 rounded-2xl p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-lg">🗓️</span>
+                      <p className="text-emerald-300 text-sm font-semibold">Interview Auto-Scheduled</p>
+                      <span className="ml-auto px-2 py-0.5 rounded border text-xs text-emerald-400 bg-emerald-500/10 border-emerald-500/20 capitalize">
+                        {screening.auto_interview.status}
+                      </span>
+                    </div>
+                    <p className="text-foreground-4 text-xs mb-3">
+                      Scheduled {new Date(screening.auto_interview.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      {screening.latest_call?.interview_availability && ` · Candidate available: ${screening.latest_call.interview_availability}`}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        readOnly
+                        value={screening.auto_interview.interview_link}
+                        className="flex-1 bg-ink/10 border border-base rounded-lg px-3 py-2 text-foreground-3 text-xs font-mono truncate"
+                      />
+                      <button
+                        onClick={() => navigator.clipboard.writeText(screening!.auto_interview!.interview_link)}
+                        className="px-3 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/20 text-emerald-300 rounded-lg text-xs font-medium transition-colors shrink-0"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Latest call info */}
                 {screening?.latest_call && screening.latest_call.screening_completed && (
                   <div className="bg-surface border border-base rounded-2xl p-5">
-                    <p className="text-foreground-2 text-sm font-medium mb-4">Screening Results</p>
+                    <p className="text-foreground-2 text-sm font-medium mb-4">📋 Screening Results</p>
+
+                    {/* Call summary */}
+                    {(() => {
+                      const summaryEvent = screening.timeline?.find(
+                        (e: any) => e.event_type === "SCREENING_COMPLETED" && e.event_data?.callSummary
+                      );
+                      return summaryEvent?.event_data?.callSummary ? (
+                        <div className="mb-4 pb-4 border-b border-faint">
+                          <p className="text-foreground-5 text-xs mb-1.5">AI Call Summary</p>
+                          <p className="text-foreground-3 text-sm leading-relaxed">{summaryEvent.event_data.callSummary}</p>
+                        </div>
+                      ) : null;
+                    })()}
+
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {[
                         { label: "Current Role", value: screening.latest_call.current_role },
@@ -584,20 +630,24 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                         { label: "Notice Period", value: screening.latest_call.notice_period },
                         { label: "Candidate Intent", value: screening.latest_call.candidate_intent },
                       ].filter(f => f.value).map(f => (
-                        <div key={f.label}>
+                        <div key={f.label} className="bg-ink/[0.03] border border-faint rounded-xl px-3 py-2.5">
                           <p className="text-foreground-5 text-xs mb-0.5">{f.label}</p>
-                          <p className="text-foreground-2 text-sm">{f.value}</p>
+                          <p className="text-foreground-2 text-sm font-medium">{f.value}</p>
                         </div>
                       ))}
                     </div>
+
                     {screening.latest_call.interview_availability && (
-                      <div className="mt-4 pt-4 border-t border-faint">
-                        <p className="text-foreground-5 text-xs mb-1">Interview Availability</p>
-                        <p className="text-foreground-2 text-sm">{screening.latest_call.interview_availability}</p>
+                      <div className="mt-4 pt-4 border-t border-faint flex items-center gap-3">
+                        <span className="text-lg">📅</span>
+                        <div>
+                          <p className="text-foreground-5 text-xs">Interview Availability</p>
+                          <p className="text-foreground-2 text-sm font-medium">{screening.latest_call.interview_availability}</p>
+                        </div>
                       </div>
                     )}
                     {screening.latest_call.candidate_question && (
-                      <div className="mt-3">
+                      <div className="mt-3 pt-3 border-t border-faint">
                         <p className="text-foreground-5 text-xs mb-1">Candidate's Question</p>
                         <p className="text-foreground-2 text-sm italic">"{screening.latest_call.candidate_question}"</p>
                       </div>
@@ -608,20 +658,6 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                         <p className="text-foreground-3 text-sm">{screening.latest_call.additional_notes}</p>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* Interview scheduling hint */}
-                {screening?.latest_call?.interview_availability && screening.screening_status === "completed" && (
-                  <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-violet-300 text-sm font-medium">Ready for interview scheduling</p>
-                      <p className="text-foreground-4 text-xs mt-0.5">Candidate available: {screening.latest_call.interview_availability}</p>
-                    </div>
-                    <Link href={`/dashboard/schedule?candidate=${params.candidateId}`}
-                      className="px-3 py-2 bg-violet-500 hover:bg-violet-400 text-white rounded-lg text-xs font-medium transition-colors shrink-0">
-                      Schedule →
-                    </Link>
                   </div>
                 )}
 
