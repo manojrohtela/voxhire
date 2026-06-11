@@ -209,19 +209,7 @@ export default function ScreeningPage({ params }: { params: { token: string } })
       // Start the Vapi call
       await vapi.start(config.vapi_assistant_id, {
         metadata: config.metadata,
-        // Prevent premature hang-up due to candidate thinking silently
         silenceTimeoutSeconds: 90,
-        // Improve microphone sensitivity and end-of-speech detection
-        backgroundDenoisingEnabled: true,
-        startSpeakingPlan: {
-          waitSeconds: 0.4,
-          smartEndpointingEnabled: true,
-        },
-        stopSpeakingPlan: {
-          numWordsToInterruptAssistant: 1,
-          voiceSeconds: 0.2,
-          backoffSeconds: 1.0,
-        },
       } as any);
       addDebug("vapi.start() resolved");
 
