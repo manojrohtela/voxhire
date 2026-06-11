@@ -61,6 +61,30 @@ export default function ScreeningPage({ params }: { params: { token: string } })
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const vapiRef = useRef<Vapi | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const silenceCountRef = useRef(0);
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSilencePrompt = useCallback(() => {
+    clearSilenceTimer();
+    if (silenceCountRef.current >= 3) return;
+    silenceTimerRef.current = setTimeout(() => {
+      silenceCountRef.current += 1;
+      vapiRef.current?.send({
+        type: "add-message",
+        message: {
+          role: "system",
+          content: "The candidate has been silent for 10 seconds. Re-ask your last question briefly, or say something like 'Are you still there? Take your time.' to keep the conversation going.",
+        },
+      } as any);
+    }, 10000);
+  }, [clearSilenceTimer]);
 
   const addDebug = (msg: string) => {
     console.log("[VoxHire]", msg);
@@ -114,11 +138,20 @@ export default function ScreeningPage({ params }: { params: { token: string } })
 
       vapi.on("call-end", () => {
         addDebug("call-end fired");
+        clearSilenceTimer();
         setPhase("completed");
       });
 
-      vapi.on("speech-start", () => setIsAISpeaking(true));
-      vapi.on("speech-end", () => setIsAISpeaking(false));
+      vapi.on("speech-start", () => {
+        setIsAISpeaking(true);
+        clearSilenceTimer();
+      });
+      vapi.on("speech-end", () => {
+        setIsAISpeaking(false);
+        // Start 10s silence timer — re-prompt if candidate doesn't respond
+        silenceCountRef.current = 0;
+        scheduleSilencePrompt();
+      });
 
       vapi.on("message", (msg: any) => {
         addDebug(`message: type=${msg.type}`);
@@ -144,6 +177,9 @@ export default function ScreeningPage({ params }: { params: { token: string } })
         if (msg.type === "transcript") {
           const role: "user" | "assistant" = msg.role === "user" ? "user" : "assistant";
           const isFinal = msg.transcriptType === "final";
+
+          // Candidate spoke — cancel silence re-prompt timer
+          if (role === "user") clearSilenceTimer();
 
           setTranscript((prev) => {
             const lastIdx = prev.length - 1;
@@ -193,7 +229,7 @@ export default function ScreeningPage({ params }: { params: { token: string } })
       setStartError(e.message === "failed" ? "This link has already been used or has expired." : "Failed to start screening. Please try again.");
       setStarting(false);
     }
-  }, [token]);
+  }, [token, clearSilenceTimer, scheduleSilencePrompt]);
 
   const handleEnd = useCallback(() => {
     vapiRef.current?.stop();
