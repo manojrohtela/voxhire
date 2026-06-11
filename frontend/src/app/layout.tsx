@@ -4,8 +4,23 @@ import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "next-themes";
 
 export const metadata: Metadata = {
-  title: "VoxHire",
-  description: "AI-powered interview platform",
+  title: "VoxHire — AI Voice Interview Platform",
+  description: "AI-powered voice interview platform. Post jobs, let AI conduct voice screenings via Vapi, and get detailed candidate reports with scoring — automatically.",
+  metadataBase: new URL("https://voxhire.heyagenthive.com"),
+  openGraph: {
+    type: "website",
+    url: "https://voxhire.heyagenthive.com/",
+    title: "VoxHire — AI Voice Interview Platform",
+    description: "AI-powered voice interview platform. Post jobs, let AI conduct voice screenings via Vapi, and get detailed candidate reports with scoring — automatically.",
+    images: [{ url: "https://heyagenthive.com/api/og/voxhire", width: 1200, height: 630 }],
+    siteName: "HeyAgentHive",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VoxHire — AI Voice Interview Platform",
+    description: "AI-powered voice interview platform. Post jobs, let AI conduct voice screenings via Vapi, and get detailed candidate reports with scoring — automatically.",
+    images: ["https://heyagenthive.com/api/og/voxhire"],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
