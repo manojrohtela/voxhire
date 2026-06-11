@@ -35,3 +35,9 @@ async def require_org_admin(current_user: dict = Depends(get_current_user)) -> d
     if current_user["role"] not in (UserRole.ORG_ADMIN, UserRole.SUPER_ADMIN):
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+
+async def require_super_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user["role"] != UserRole.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Super-admin access required")
+    return current_user

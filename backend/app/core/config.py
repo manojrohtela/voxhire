@@ -6,11 +6,28 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     CARTESIA_API_KEY: str = ""
     DATABASE_URL: str = ""
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # JWT
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     ALGORITHM: str = "HS256"
+
+    # Super admin bootstrap (set in prod env, one-time use)
+    SUPER_ADMIN_SEED_KEY: str = ""
+
+    # Vapi screening call integration
+    VAPI_API_KEY: str = ""           # Vapi private key — used to trigger outbound calls
+    VAPI_PUBLIC_KEY: str = ""        # Vapi public key — used by the browser Web SDK
+    VAPI_ASSISTANT_ID: str = ""      # Vapi assistant ID configured for screening
+    VAPI_WEBHOOK_SECRET: str = ""    # Shared secret Vapi sends in X-Vapi-Secret header
+
+    # SMTP (optional — if empty, invitation link is returned but no email is sent)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    FROM_EMAIL: str = "noreply@voxhire.ai"
 
     class Config:
         env_file = ".env"

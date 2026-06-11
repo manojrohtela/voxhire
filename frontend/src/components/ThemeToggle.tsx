@@ -38,7 +38,7 @@ export default function ThemeToggle() {
   if (!mounted) return null;
 
   return (
-    <div className="flex bg-ink/[0.04] dark:bg-ink/[0.04] rounded-lg p-0.5 gap-0.5">
+    <div className="flex bg-surface border border-base rounded-lg p-0.5 gap-0.5">
       {OPTIONS.map(({ value, label, Icon }) => {
         const active = theme === value;
         return (
@@ -46,10 +46,10 @@ export default function ThemeToggle() {
             key={value}
             onClick={() => setTheme(value)}
             title={label}
-            className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-all ${
+            className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${
               active
-                ? "bg-surface dark:bg-ink/10 text-foreground shadow-sm"
-                : "text-foreground-4 hover:text-foreground-3"
+                ? "bg-violet-500/10 text-violet-400 shadow-sm"
+                : "text-foreground-3 hover:text-foreground hover:bg-ink/[0.05]"
             }`}
           >
             <Icon />

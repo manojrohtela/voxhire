@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
 
+const C = (v: string) => `rgb(var(--c-${v}) / <alpha-value>)`;
+
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,35 +11,133 @@ const config: Config = {
   darkMode: "class",
   theme: {
     extend: {
+      /* ─── Aura Enterprise colors + backward-compat aliases ── */
       colors: {
-        /* Backgrounds */
-        background: "rgb(var(--bg) / <alpha-value>)",
+        /* ── Backward-compat tokens (existing pages) ── */
+        background:  C("background"),
         surface: {
-          DEFAULT: "rgb(var(--bg-card) / <alpha-value>)",
-          hi: "rgb(var(--bg-raised) / <alpha-value>)",
+          DEFAULT: C("surface-container"),  /* existing: card background */
+          hi:      C("surface-container-high"),
         },
-        nav: "rgb(var(--bg-nav) / <alpha-value>)",
-
-        /* Text / overlay — use with opacity modifier: text-ink/40, bg-ink/[0.04] */
-        ink: "rgb(var(--fg) / <alpha-value>)",
-
-        /* Semantic text levels */
+        nav:         C("surface-container-low"),
+        ink:         C("on-surface"),
         foreground: {
-          DEFAULT: "rgb(var(--fg) / 0.90)",   /* ~text-white (headings) */
-          2: "rgb(var(--fg) / 0.60)",          /* text-white/60-70       */
-          3: "rgb(var(--fg) / 0.35)",          /* text-white/30-40       */
-          4: "rgb(var(--fg) / 0.22)",          /* text-white/20-25       */
-          5: "rgb(var(--fg) / 0.12)",          /* text-white/12-15       */
+          DEFAULT: `rgb(var(--c-on-surface) / 0.90)`,
+          2: `rgb(var(--c-on-surface) / 0.60)`,
+          3: `rgb(var(--c-on-surface) / 0.35)`,
+          4: `rgb(var(--c-on-surface) / 0.22)`,
+          5: `rgb(var(--c-on-surface) / 0.12)`,
         },
+        brand:       C("primary"),
 
-        /* Brand */
-        brand: "rgb(var(--brand) / <alpha-value>)",
+        /* ── Aura primary ── */
+        primary:                   C("primary"),
+        "on-primary":              C("on-primary"),
+        "primary-container":       C("primary-container"),
+        "on-primary-container":    C("on-primary-container"),
+        "inverse-primary":         C("inverse-primary"),
+        "primary-fixed":           C("primary-fixed"),
+        "primary-fixed-dim":       C("primary-fixed-dim"),
+        "on-primary-fixed":        C("on-primary-fixed"),
+        "on-primary-fixed-variant": C("on-primary-fixed-variant"),
+
+        /* ── Aura secondary ── */
+        secondary:                   C("secondary"),
+        "on-secondary":              C("on-secondary"),
+        "secondary-container":       C("secondary-container"),
+        "on-secondary-container":    C("on-secondary-container"),
+        "secondary-fixed":           C("secondary-fixed"),
+        "secondary-fixed-dim":       C("secondary-fixed-dim"),
+        "on-secondary-fixed":        C("on-secondary-fixed"),
+        "on-secondary-fixed-variant": C("on-secondary-fixed-variant"),
+
+        /* ── Aura tertiary ── */
+        tertiary:                    C("tertiary"),
+        "on-tertiary":               C("on-tertiary"),
+        "tertiary-container":        C("tertiary-container"),
+        "on-tertiary-container":     C("on-tertiary-container"),
+        "tertiary-fixed":            C("tertiary-fixed"),
+        "tertiary-fixed-dim":        C("tertiary-fixed-dim"),
+        "on-tertiary-fixed":         C("on-tertiary-fixed"),
+        "on-tertiary-fixed-variant": C("on-tertiary-fixed-variant"),
+
+        /* ── Aura error ── */
+        error:                C("error"),
+        "on-error":           C("on-error"),
+        "error-container":    C("error-container"),
+        "on-error-container": C("on-error-container"),
+
+        /* ── Aura surface scale (flat token names) ── */
+        "surface-dim":               C("surface-dim"),
+        "surface-bright":            C("surface-bright"),
+        "surface-container":         C("surface-container"),
+        "surface-container-low":     C("surface-container-low"),
+        "surface-container-high":    C("surface-container-high"),
+        "surface-container-highest": C("surface-container-highest"),
+        "surface-container-lowest":  C("surface-container-lowest"),
+        "surface-variant":           C("surface-variant"),
+        "surface-tint":              C("surface-tint"),
+        "on-surface":                C("on-surface"),
+        "on-surface-variant":        C("on-surface-variant"),
+        "on-background":             C("on-background"),
+        "inverse-surface":           C("inverse-surface"),
+        "inverse-on-surface":        C("inverse-on-surface"),
+
+        /* ── Aura outline ── */
+        outline:          C("outline"),
+        "outline-variant": C("outline-variant"),
       },
+
       borderColor: {
-        faint:  "rgb(var(--fg) / 0.05)",   /* border-faint  — sidebar/topbar seams  */
-        base:   "rgb(var(--fg) / 0.07)",   /* border-base   — card / input borders  */
-        strong: "rgb(var(--fg) / 0.10)",   /* border-strong — hover / auth inputs   */
-        brand:  "rgb(var(--brand) / 0.25)",/* border-brand  — brand accents         */
+        faint:  `rgb(var(--c-on-surface) / 0.05)`,
+        base:   `rgb(var(--c-on-surface) / 0.07)`,
+        strong: `rgb(var(--c-on-surface) / 0.10)`,
+        brand:  `rgb(var(--c-primary) / 0.25)`,
+      },
+
+      /* ─── Aura spacing tokens ────────────────────────────── */
+      spacing: {
+        xs:  "4px",
+        sm:  "8px",
+        md:  "16px",
+        lg:  "24px",
+        xl:  "32px",
+        "2xl": "48px",
+        "3xl": "64px",
+        gutter: "24px",
+        "container-max": "1280px",
+        unit: "4px",
+      },
+
+      /* ─── Aura font sizes ────────────────────────────────── */
+      fontSize: {
+        "display-lg": ["48px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
+        "display-lg-mobile": ["36px", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" }],
+        h1:       ["30px", { lineHeight: "38px", letterSpacing: "-0.01em", fontWeight: "600" }],
+        h2:       ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "600" }],
+        h3:       ["20px", { lineHeight: "28px", fontWeight: "600" }],
+        "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
+        "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+        "body-sm": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+        "label-md": ["14px", { lineHeight: "20px", fontWeight: "500" }],
+        "label-sm": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+        code:     ["14px", { lineHeight: "20px", fontWeight: "400" }],
+      },
+
+      /* ─── Aura border radius ─────────────────────────────── */
+      borderRadius: {
+        DEFAULT: "0.25rem",
+        lg:  "0.5rem",
+        xl:  "0.75rem",
+        "2xl": "1rem",
+        "3xl": "1.5rem",
+        full: "9999px",
+      },
+
+      /* ─── Font family ────────────────────────────────────── */
+      fontFamily: {
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        code: ["monospace"],
       },
     },
   },

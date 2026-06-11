@@ -7,6 +7,9 @@ import { useCandidates, useInterviews } from "@/hooks/useData";
 import { interviewsApi } from "@/lib/api-client";
 
 const DURATIONS = [30, 45, 60, 90];
+const INTERVIEW_TYPES = ["Technical", "HR", "Leadership", "Sales"];
+const DIFFICULTIES = ["Easy", "Medium", "Hard"];
+const AI_PERSONALITIES = ["Friendly", "Neutral", "Strict"];
 
 const TIME_SLOTS = [
   { time: "09:00 AM", available: true }, { time: "09:30 AM", available: true },
@@ -42,6 +45,9 @@ function ScheduleContent() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(preselectedId);
   const [duration, setDuration] = useState(45);
+  const [interviewType, setInterviewType] = useState("Technical");
+  const [difficulty, setDifficulty] = useState("Medium");
+  const [aiPersonality, setAiPersonality] = useState("Neutral");
   const [step, setStep] = useState<"pick" | "confirm" | "done">("pick");
   const [newInterview, setNewInterview] = useState<any>(null);
   const [copied, setCopied] = useState(false);
@@ -74,6 +80,10 @@ function ScheduleContent() {
         candidate_id: selectedCandidate.id,
         scheduled_at: scheduledAt,
         duration_minutes: duration,
+        interview_type: interviewType,
+        difficulty,
+        ai_personality: aiPersonality,
+        language: "en",
       });
       setNewInterview({ ...session, candidateName: selectedCandidate.name, role: selectedCandidate.applied_role });
       refetchInterviews();
@@ -137,7 +147,8 @@ function ScheduleContent() {
                 { label: "Date", value: dateLabel },
                 { label: "Time", value: selectedSlot! },
                 { label: "Duration", value: `${duration} minutes` },
-                { label: "Interview Type", value: "AI Video Interview (Browser)" },
+                { label: "Interview Type", value: `${interviewType} · ${difficulty}` },
+                { label: "AI Personality", value: aiPersonality },
                 { label: "Email", value: selectedCandidate?.email || "" },
               ].map((item) => (
                 <div key={item.label} className="flex items-start justify-between py-3 border-b border-faint last:border-0">
@@ -281,6 +292,57 @@ function ScheduleContent() {
                 </div>
               )}
 
+              {/* Step 5: Interview Configuration */}
+              {selectedSlot && (
+                <div className="bg-surface border border-base rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-400 text-xs font-bold">5</div>
+                    <h2 className="text-foreground-2 text-sm font-medium">Interview Configuration</h2>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-foreground-4 text-xs mb-2">Interview Type</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {INTERVIEW_TYPES.map((t) => (
+                          <button key={t} onClick={() => setInterviewType(t)}
+                            className={`py-2 rounded-lg text-xs font-medium border transition-all ${
+                              interviewType === t ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2"
+                            }`}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-foreground-4 text-xs mb-2">Difficulty</p>
+                      <div className="flex gap-2">
+                        {DIFFICULTIES.map((d) => (
+                          <button key={d} onClick={() => setDifficulty(d)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                              difficulty === d ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2"
+                            }`}>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-foreground-4 text-xs mb-2">AI Personality</p>
+                      <div className="flex gap-2">
+                        {AI_PERSONALITIES.map((p) => (
+                          <button key={p} onClick={() => setAiPersonality(p)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                              aiPersonality === p ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2"
+                            }`}>
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <button disabled={!selectedCandidateId || !selectedDay || !selectedSlot}
                 onClick={() => setStep("confirm")}
                 className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all ${
@@ -305,10 +367,14 @@ function ScheduleContent() {
             <div className="divide-y divide-ink/[0.04]">
               {upcomingInterviews.length === 0 ? (
                 <p className="px-5 py-6 text-foreground-4 text-xs text-center">No upcoming interviews</p>
-              ) : upcomingInterviews.map((s: any) => (
+              ) : upcomingInterviews.map((s: any) => {
+                const cand = candidates.find((c) => c.id === s.candidate_id);
+                return (
                 <div key={s.id} className="px-5 py-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <p className="text-foreground-2 text-sm font-medium truncate">{s.candidate_id}</p>
+                    <p className="text-foreground-2 text-sm font-medium truncate">
+                      {cand?.name ?? s.candidate_id}
+                    </p>
                     {s.scheduled_at && (
                       <span className="text-violet-400 text-xs shrink-0">
                         {new Date(s.scheduled_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
@@ -327,7 +393,8 @@ function ScheduleContent() {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

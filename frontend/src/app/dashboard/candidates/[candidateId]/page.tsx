@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useCandidate } from "@/hooks/useData";
 import { candidatesApi } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 const RATING_STYLE: Record<string, { badge: string; bar: string }> = {
   Strong: { badge: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", bar: "bg-emerald-500" },
@@ -13,12 +15,134 @@ const RATING_STYLE: Record<string, { badge: string; bar: string }> = {
   Pending: { badge: "text-foreground-3 bg-ink/5 border-base", bar: "bg-ink/20" },
 };
 
-type Tab = "report" | "transcript" | "recording";
+const SCREENING_STATUS_STYLE: Record<string, { label: string; color: string }> = {
+  not_contacted:       { label: "Not Contacted",      color: "text-foreground-4 bg-ink/5 border-base" },
+  link_sent:           { label: "Link Sent",          color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
+  calling:             { label: "In Progress",        color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
+  completed:           { label: "Completed",          color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+  callback_requested:  { label: "Callback Requested", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+  declined:            { label: "Declined",           color: "text-red-400 bg-red-500/10 border-red-500/20" },
+  no_answer:           { label: "No Answer",          color: "text-orange-400 bg-orange-500/10 border-orange-500/20" },
+  call_dropped:        { label: "Call Dropped",       color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20" },
+  partially_completed: { label: "Partial Info",       color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
+};
+
+const EVENT_ICON: Record<string, string> = {
+  INVITATION_SENT:      "📨",
+  SCREENING_INITIATED:  "📞",
+  CALL_CONNECTED:       "🔗",
+  SCREENING_COMPLETED:  "✅",
+  CALLBACK_REQUESTED:   "📅",
+  DECLINED:             "❌",
+  CALL_DROPPED:         "📵",
+  NO_ANSWER:            "🔕",
+  RETRY_SCHEDULED:      "🔄",
+};
+
+type Tab = "report" | "transcript" | "recording" | "screening";
+
+interface ScreeningData {
+  screening_status: string;
+  screening_attempt_count: number;
+  last_screening_attempt_at: string | null;
+  latest_call: Record<string, any> | null;
+  latest_invitation: Record<string, any> | null;
+  calls: Record<string, any>[];
+  invitations: Record<string, any>[];
+  timeline: Record<string, any>[];
+}
+
+async function fetchScreeningData(candidateId: string): Promise<ScreeningData | null> {
+  const token = localStorage.getItem("access_token");
+  const res = await fetch(`${API_URL}/api/v1/screening/${candidateId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function sendScreeningInvitation(candidateId: string, jobId?: string): Promise<any> {
+  const token = localStorage.getItem("access_token");
+  const res = await fetch(`${API_URL}/api/v1/screening/${candidateId}/send-invitation`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ job_id: jobId || null, expires_in_hours: 72 }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to send invitation");
+  }
+  return res.json();
+}
+
+async function retryScreeningCall(candidateId: string): Promise<any> {
+  const token = localStorage.getItem("access_token");
+  const res = await fetch(`${API_URL}/api/v1/screening/${candidateId}/retry`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to retry screening");
+  }
+  return res.json();
+}
 
 export default function CandidateDetailPage({ params }: { params: { candidateId: string } }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("report");
   const { candidate: c, loading, error, refetch } = useCandidate(params.candidateId);
+
+  const [screening, setScreening] = useState<ScreeningData | null>(null);
+  const [screeningLoading, setScreeningLoading] = useState(false);
+  const [screeningAction, setScreeningAction] = useState<string | null>(null);
+  const [screeningError, setScreeningError] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const loadScreening = useCallback(async () => {
+    if (!params.candidateId) return;
+    setScreeningLoading(true);
+    const data = await fetchScreeningData(params.candidateId);
+    setScreening(data);
+    setScreeningLoading(false);
+  }, [params.candidateId]);
+
+  useEffect(() => {
+    if (activeTab === "screening") loadScreening();
+  }, [activeTab, loadScreening]);
+
+  const handleSendInvitation = async () => {
+    setScreeningAction("sending");
+    setScreeningError(null);
+    try {
+      await sendScreeningInvitation(params.candidateId);
+      await loadScreening();
+    } catch (e: any) {
+      setScreeningError(e.message);
+    } finally {
+      setScreeningAction(null);
+    }
+  };
+
+  const handleRetryScreening = async () => {
+    setScreeningAction("retrying");
+    setScreeningError(null);
+    try {
+      await retryScreeningCall(params.candidateId);
+      await loadScreening();
+    } catch (e: any) {
+      setScreeningError(e.message);
+    } finally {
+      setScreeningAction(null);
+    }
+  };
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    });
+  };
 
   const handleUpdateRating = async (rating: string) => {
     await candidatesApi.update(params.candidateId, { overall_rating: rating });
@@ -108,12 +232,12 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 border-b border-faint">
-          {(["report", "transcript", "recording"] as Tab[]).map((tab) => (
+          {(["report", "transcript", "recording", "screening"] as Tab[]).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-4 py-2.5 text-sm font-medium capitalize transition-all border-b-2 -mb-px ${
                 activeTab === tab ? "text-violet-300 border-violet-500" : "text-foreground-3 border-transparent hover:text-foreground-2"
               }`}>
-              {tab === "report" ? "📊 Report" : tab === "transcript" ? "📝 Transcript" : "🎥 Recording"}
+              {tab === "report" ? "📊 Report" : tab === "transcript" ? "📝 Transcript" : tab === "recording" ? "🎥 Recording" : "📞 Screening"}
             </button>
           ))}
         </div>
@@ -328,6 +452,283 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ── SCREENING ──────────────────────────────────────────── */}
+        {activeTab === "screening" && (
+          <div className="space-y-5">
+            {screeningLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* Status header + action buttons */}
+                <div className="bg-surface border border-base rounded-2xl p-5 flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <p className="text-foreground-4 text-xs uppercase tracking-wider mb-2">Screening Status</p>
+                    {screening ? (
+                      <>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {(() => {
+                            const s = screening.screening_status || "not_contacted";
+                            const style = SCREENING_STATUS_STYLE[s] || SCREENING_STATUS_STYLE.not_contacted;
+                            return (
+                              <span className={`px-3 py-1 rounded-lg border text-sm font-semibold ${style.color}`}>
+                                {style.label}
+                              </span>
+                            );
+                          })()}
+                          {screening.screening_attempt_count > 0 && (
+                            <span className="text-foreground-4 text-xs">{screening.screening_attempt_count} attempt{screening.screening_attempt_count !== 1 ? "s" : ""}</span>
+                          )}
+                          {screening.last_screening_attempt_at && (
+                            <span className="text-foreground-5 text-xs">
+                              Last: {new Date(screening.last_screening_attempt_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                        </div>
+                        {screening.screening_status === "callback_requested" && screening.latest_call && (
+                          <p className="text-amber-400 text-xs mt-2">
+                            Callback scheduled: {screening.latest_call.callback_date} {screening.latest_call.callback_time}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-foreground-4 text-sm">No screening data</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0 flex-wrap">
+                    {/* Primary: Send web screening link */}
+                    {(!screening || ["not_contacted", null, undefined, "declined", "completed"].indexOf(screening.screening_status) !== -1 && screening.screening_status !== "calling") && (
+                      <button
+                        onClick={handleSendInvitation}
+                        disabled={!!screeningAction}
+                        className="px-4 py-2 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        {screeningAction === "sending" ? "Sending…" : "📨 Send Screening Link"}
+                      </button>
+                    )}
+                    {/* Retry for failed/dropped/callback */}
+                    {screening && ["no_answer", "call_dropped", "callback_requested", "partially_completed"].includes(screening.screening_status) && (
+                      <button
+                        onClick={handleRetryScreening}
+                        disabled={!!screeningAction}
+                        className="px-4 py-2 bg-ink/[0.06] hover:bg-ink/10 disabled:opacity-50 border border-base text-foreground-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        {screeningAction === "retrying" ? "Retrying…" : "🔄 Resend Link"}
+                      </button>
+                    )}
+                    {screening && (
+                      <button onClick={loadScreening} className="px-3 py-2 border border-base rounded-lg text-foreground-4 hover:text-foreground-3 text-xs transition-colors">
+                        ↻ Refresh
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {screeningError && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm">
+                    {screeningError}
+                  </div>
+                )}
+
+                {/* Active invitation link */}
+                {screening?.latest_invitation && !screening.latest_invitation.is_used && (
+                  <div className="bg-violet-500/5 border border-violet-500/20 rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                      <p className="text-violet-300 text-sm font-medium">
+                        {screening.latest_invitation.email_sent ? "📧 Invitation sent via email" : "🔗 Invitation link ready to share"}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        {screening.latest_invitation.started_at && (
+                          <span className="px-2 py-0.5 rounded text-xs bg-blue-500/10 border border-blue-500/20 text-blue-400">Link opened</span>
+                        )}
+                        {(() => {
+                          const expiresAt = new Date(screening.latest_invitation.expires_at);
+                          const hoursLeft = Math.round((expiresAt.getTime() - Date.now()) / 3600000);
+                          return hoursLeft > 0
+                            ? <span className="text-foreground-5 text-xs">Expires in {hoursLeft}h</span>
+                            : <span className="text-red-400 text-xs">Expired</span>;
+                        })()}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        readOnly
+                        value={screening.latest_invitation.screening_url}
+                        className="flex-1 bg-ink/10 border border-base rounded-lg px-3 py-2 text-foreground-3 text-xs font-mono truncate"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(screening.latest_invitation!.screening_url)}
+                        className="px-3 py-2 bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/20 text-violet-300 rounded-lg text-xs font-medium transition-colors shrink-0"
+                      >
+                        {copiedLink ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Latest call info */}
+                {screening?.latest_call && screening.latest_call.screening_completed && (
+                  <div className="bg-surface border border-base rounded-2xl p-5">
+                    <p className="text-foreground-2 text-sm font-medium mb-4">Screening Results</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {[
+                        { label: "Current Role", value: screening.latest_call.current_role },
+                        { label: "Total Experience", value: screening.latest_call.total_experience },
+                        { label: "Work Mode", value: screening.latest_call.work_mode },
+                        { label: "Current CTC", value: screening.latest_call.current_ctc },
+                        { label: "Expected CTC", value: screening.latest_call.expected_ctc },
+                        { label: "Notice Period", value: screening.latest_call.notice_period },
+                        { label: "Candidate Intent", value: screening.latest_call.candidate_intent },
+                      ].filter(f => f.value).map(f => (
+                        <div key={f.label}>
+                          <p className="text-foreground-5 text-xs mb-0.5">{f.label}</p>
+                          <p className="text-foreground-2 text-sm">{f.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {screening.latest_call.interview_availability && (
+                      <div className="mt-4 pt-4 border-t border-faint">
+                        <p className="text-foreground-5 text-xs mb-1">Interview Availability</p>
+                        <p className="text-foreground-2 text-sm">{screening.latest_call.interview_availability}</p>
+                      </div>
+                    )}
+                    {screening.latest_call.candidate_question && (
+                      <div className="mt-3">
+                        <p className="text-foreground-5 text-xs mb-1">Candidate's Question</p>
+                        <p className="text-foreground-2 text-sm italic">"{screening.latest_call.candidate_question}"</p>
+                      </div>
+                    )}
+                    {screening.latest_call.additional_notes && (
+                      <div className="mt-3">
+                        <p className="text-foreground-5 text-xs mb-1">Additional Notes</p>
+                        <p className="text-foreground-3 text-sm">{screening.latest_call.additional_notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Interview scheduling hint */}
+                {screening?.latest_call?.interview_availability && screening.screening_status === "completed" && (
+                  <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-violet-300 text-sm font-medium">Ready for interview scheduling</p>
+                      <p className="text-foreground-4 text-xs mt-0.5">Candidate available: {screening.latest_call.interview_availability}</p>
+                    </div>
+                    <Link href={`/dashboard/schedule?candidate=${params.candidateId}`}
+                      className="px-3 py-2 bg-violet-500 hover:bg-violet-400 text-white rounded-lg text-xs font-medium transition-colors shrink-0">
+                      Schedule →
+                    </Link>
+                  </div>
+                )}
+
+                {/* Timeline */}
+                {screening?.timeline && screening.timeline.length > 0 && (
+                  <div className="bg-surface border border-base rounded-2xl p-5">
+                    <p className="text-foreground-2 text-sm font-medium mb-4">Screening Timeline</p>
+                    <div className="space-y-4">
+                      {screening.timeline.map((ev: any, i: number) => (
+                        <div key={ev.id || i} className="flex gap-3">
+                          <div className="w-7 h-7 rounded-full bg-ink/[0.06] border border-base flex items-center justify-center shrink-0 text-sm mt-0.5">
+                            {EVENT_ICON[ev.event_type] || "•"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-foreground-2 text-sm font-medium">
+                                {ev.event_type.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                              </span>
+                              <span className="text-foreground-5 text-xs">
+                                {ev.created_at ? new Date(ev.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+                              </span>
+                            </div>
+                            {ev.event_data && Object.keys(ev.event_data).length > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                                {Object.entries(ev.event_data).filter(([, v]) => v).map(([k, v]) => (
+                                  <span key={k} className="text-foreground-4 text-xs">
+                                    {k}: <span className="text-foreground-3">{String(v)}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Invitation history */}
+                {screening?.invitations && screening.invitations.length > 0 && (
+                  <div className="bg-surface border border-base rounded-2xl p-5">
+                    <p className="text-foreground-2 text-sm font-medium mb-4">Invitation History</p>
+                    <div className="space-y-3">
+                      {screening.invitations.map((inv: any, i: number) => {
+                        const isExpired = new Date(inv.expires_at) < new Date();
+                        return (
+                          <div key={inv.id || i} className="flex items-center gap-3 py-2 border-b border-faint last:border-0 flex-wrap">
+                            <span className="text-foreground-4 text-xs w-5 text-center shrink-0">📨</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-foreground-3 text-xs truncate">{inv.screening_url}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {inv.is_used && <span className="px-1.5 py-0.5 rounded text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">Used</span>}
+                              {!inv.is_used && inv.started_at && <span className="px-1.5 py-0.5 rounded text-xs bg-blue-500/10 border border-blue-500/20 text-blue-400">Opened</span>}
+                              {!inv.is_used && !inv.started_at && isExpired && <span className="px-1.5 py-0.5 rounded text-xs bg-red-500/10 border border-red-500/20 text-red-400">Expired</span>}
+                              {!inv.is_used && !isExpired && <span className="px-1.5 py-0.5 rounded text-xs bg-violet-500/10 border border-violet-500/20 text-violet-400">Active</span>}
+                              {!inv.is_used && !isExpired && (
+                                <button
+                                  onClick={() => handleCopyLink(inv.screening_url)}
+                                  className="text-foreground-5 hover:text-foreground-3 text-xs transition-colors"
+                                >
+                                  Copy
+                                </button>
+                              )}
+                              <span className="text-foreground-5 text-xs">
+                                {inv.created_at ? new Date(inv.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* All call attempts */}
+                {screening?.calls && screening.calls.length > 1 && (
+                  <div className="bg-surface border border-base rounded-2xl p-5">
+                    <p className="text-foreground-2 text-sm font-medium mb-4">All Attempts ({screening.calls.length})</p>
+                    <div className="space-y-3">
+                      {screening.calls.map((call: any) => {
+                        const outStyle = call.call_outcome
+                          ? SCREENING_STATUS_STYLE[call.call_outcome.toLowerCase()] || SCREENING_STATUS_STYLE.not_contacted
+                          : SCREENING_STATUS_STYLE.not_contacted;
+                        return (
+                          <div key={call.id} className="flex items-center gap-3 py-2 border-b border-faint last:border-0">
+                            <span className="text-foreground-4 text-xs w-6 text-center">#{call.attempt_number}</span>
+                            <span className={`px-2 py-0.5 rounded border text-xs ${outStyle.color}`}>{call.call_outcome || "Pending"}</span>
+                            <span className="text-foreground-4 text-xs ml-auto">
+                              {call.created_at ? new Date(call.created_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {!screening && !screeningLoading && (
+                  <div className="bg-surface border border-base rounded-2xl p-10 text-center">
+                    <p className="text-4xl mb-3">📨</p>
+                    <p className="text-foreground-3 text-sm mb-1">No screening activity yet</p>
+                    <p className="text-foreground-5 text-xs">Click "Send Screening Link" to invite the candidate to a web-based Vapi screening</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

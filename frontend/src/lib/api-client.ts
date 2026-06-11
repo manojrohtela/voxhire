@@ -108,25 +108,76 @@ export const interviewsApi = {
 
   get: (id: string) => request<any>(`/api/v1/interviews/${id}`),
 
-  create: (body: { candidate_id: string; scheduled_at?: string; duration_minutes?: number }) =>
-    request<any>("/api/v1/interviews", { method: "POST", body: JSON.stringify(body) }),
+  create: (body: {
+    candidate_id: string;
+    scheduled_at?: string;
+    duration_minutes?: number;
+    interview_type?: string;
+    language?: string;
+    difficulty?: string;
+    question_strategy?: string;
+    ai_personality?: string;
+  }) => request<any>("/api/v1/interviews", { method: "POST", body: JSON.stringify(body) }),
 
+  // Recruiter-side status update (JWT auth)
   updateStatus: (id: string, status: string) =>
     request(`/api/v1/interviews/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),
 
   saveEvaluation: (id: string, body: any) =>
     request(`/api/v1/interviews/${id}/evaluation`, { method: "POST", body: JSON.stringify(body) }),
 
-  appendTranscript: (id: string, entries: any[]) =>
-    request(`/api/v1/interviews/${id}/transcript`, { method: "POST", body: JSON.stringify({ entries }) }),
-
-  recordViolation: (id: string, violation_type: string, timestamp_seconds?: number) =>
-    request(`/api/v1/interviews/${id}/violations`, {
+  // Candidate-side: authenticated by link_token header
+  appendTranscript: (sessionId: string, entries: any[], linkToken: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    return fetch(`${API_URL}/api/v1/interviews/${sessionId}/transcript`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Interview-Token": linkToken,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ entries }),
+    }).then((r) => (r.ok ? r.json() : Promise.reject(r)));
+  },
+
+  recordViolation: (sessionId: string, violation_type: string, linkToken: string, timestamp_seconds?: number) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    return fetch(`${API_URL}/api/v1/interviews/${sessionId}/violations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Interview-Token": linkToken,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ violation_type, timestamp_seconds }),
-    }),
+    }).then((r) => (r.ok ? r.json() : Promise.reject(r)));
+  },
+
+  // Candidate-side status update — authenticated by link_token in URL path (no JWT)
+  updateStatusByToken: (linkToken: string, status: string) =>
+    fetch(`${API_URL}/api/v1/interviews/session/${linkToken}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }).then((r) => (r.ok ? r.json() : Promise.reject(r))),
 
   join: (linkToken: string) => request<any>(`/api/v1/interviews/join/${linkToken}`),
+};
+
+// ─── Job Descriptions ─────────────────────────────────────────
+export const jobsApi = {
+  list: () => request<any[]>("/api/v1/jobs"),
+
+  get: (id: string) => request<any>(`/api/v1/jobs/${id}`),
+
+  create: (body: { title: string; raw_text: string }) =>
+    request<any>("/api/v1/jobs", { method: "POST", body: JSON.stringify(body) }),
+
+  update: (id: string, body: { title?: string; raw_text?: string }) =>
+    request<any>(`/api/v1/jobs/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  delete: (id: string) =>
+    request(`/api/v1/jobs/${id}`, { method: "DELETE" }),
 };
 
 // ─── Resume ───────────────────────────────────────────────────

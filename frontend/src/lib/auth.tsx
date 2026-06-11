@@ -14,6 +14,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("access_token", data.access_token);
     localStorage.setItem("refresh_token", data.refresh_token);
     setUser(data.user);
-    router.push("/dashboard");
+    router.push(data.user.role === "super_admin" ? "/dashboard/admin" : "/dashboard");
   }, [router]);
 
   const logout = useCallback(() => {
@@ -72,7 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin: user?.role === "org_admin" || user?.role === "super_admin" }}>
+    <AuthContext.Provider value={{
+    user, loading, login, logout,
+    isAdmin: user?.role === "org_admin" || user?.role === "super_admin",
+    isSuperAdmin: user?.role === "super_admin",
+  }}>
       {children}
     </AuthContext.Provider>
   );

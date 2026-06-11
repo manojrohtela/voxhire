@@ -37,7 +37,14 @@ def do_run_migrations(connection):
 async def run_async_migrations() -> None:
     cfg = config.get_section(config.config_ini_section, {})
     cfg["sqlalchemy.url"] = get_url()
-    connectable = async_engine_from_config(cfg, prefix="sqlalchemy.", poolclass=pool.NullPool)
+    is_supabase = "supabase" in settings.DATABASE_URL
+    connect_args = {"statement_cache_size": 0} if is_supabase else {}
+    connectable = async_engine_from_config(
+        cfg,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+        connect_args=connect_args,
+    )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()

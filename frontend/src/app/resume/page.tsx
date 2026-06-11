@@ -25,6 +25,8 @@ export default function ResumeUploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
+  const [appliedRole, setAppliedRole] = useState<string>("");
+  const [rawResumeText, setRawResumeText] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadResume = useCallback(async (file: File) => {
@@ -41,6 +43,9 @@ export default function ResumeUploadPage() {
           .map((s: any) => s.skill as string)
       );
       setSelectedSkills(primarySkills);
+      // Pre-fill applied_role from parsed experience (editable before save)
+      setAppliedRole(data.candidate_profile?.experience?.[0]?.role ?? "");
+      setRawResumeText(data.raw_text ?? data.candidate_profile?.summary ?? "");
       setUploadState("parsed");
     } catch (e: any) {
       setError(e.message);
@@ -67,7 +72,8 @@ export default function ResumeUploadPage() {
         github: p.personal?.github,
         summary: result.candidate_profile.summary,
         total_experience_years: p.total_experience_years,
-        applied_role: p.experience?.[0]?.role,
+        applied_role: appliedRole || p.experience?.[0]?.role || "",
+        resume_text: rawResumeText || undefined,
         parsed_profile: p,
       });
 
@@ -195,10 +201,22 @@ export default function ResumeUploadPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3 mb-4">
                   {p.personal?.email && <span className="text-foreground-3 text-xs">✉ {p.personal.email}</span>}
                   {p.personal?.phone && <span className="text-foreground-3 text-xs">📱 {p.personal.phone}</span>}
                   {p.personal?.location && <span className="text-foreground-3 text-xs">📍 {p.personal.location}</span>}
+                </div>
+                {/* Applied role — editable so recruiter can set the actual job being applied for */}
+                <div>
+                  <label className="text-foreground-4 text-xs font-medium block mb-1">Applying for role</label>
+                  <input
+                    type="text"
+                    value={appliedRole}
+                    onChange={(e) => setAppliedRole(e.target.value)}
+                    placeholder="e.g. Senior Software Engineer"
+                    className="w-full px-3 py-2 bg-surface-hi border border-base rounded-lg text-foreground text-sm placeholder:text-foreground-5 focus:outline-none focus:border-brand/50 transition-colors"
+                  />
+                  <p className="text-foreground-5 text-xs mt-1">Set the role this candidate is applying for. This is used in the interview.</p>
                 </div>
               </div>
 

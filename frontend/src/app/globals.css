@@ -2,26 +2,179 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Semantic color tokens ─────────────────────────────────────────────── */
-/* All values are RGB triplets so Tailwind opacity modifiers work:           */
-/*   bg-background/80  →  rgb(var(--bg) / 0.8)                               */
+/* ─── Google Fonts ──────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
+
+/* ─── Material Symbols ──────────────────────────────────────── */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Aura Enterprise Color Tokens ─────────────────────────── */
+/* All values are space-separated RGB triplets so Tailwind          */
+/* opacity modifiers work:  bg-primary/10  →  rgb(var(--c-primary) / 0.1) */
 
 :root {
-  /* Light theme */
-  --bg:       245 245 251;   /* page background   */
-  --bg-card:  255 255 255;   /* card / panel      */
-  --bg-raised:235 235 245;   /* elevated surface  */
-  --bg-nav:   248 248 254;   /* sidebar / nav     */
-  --fg:       12  12  20;    /* text + overlay base (near-black) */
-  --brand:    108 99  255;   /* #6c63ff           */
+  /* Brand & Primary */
+  --c-primary:               79 55 138;
+  --c-on-primary:            255 255 255;
+  --c-primary-container:     103 80 164;
+  --c-on-primary-container:  224 210 255;
+  --c-inverse-primary:       207 188 255;
+  --c-primary-fixed:         233 221 255;
+  --c-primary-fixed-dim:     207 188 255;
+  --c-on-primary-fixed:      34 0 93;
+  --c-on-primary-fixed-variant: 79 55 138;
+
+  /* Secondary */
+  --c-secondary:             99 89 124;
+  --c-on-secondary:          255 255 255;
+  --c-secondary-container:   225 212 253;
+  --c-on-secondary-container: 100 90 125;
+  --c-secondary-fixed:       233 221 255;
+  --c-secondary-fixed-dim:   205 192 233;
+  --c-on-secondary-fixed:    31 22 53;
+  --c-on-secondary-fixed-variant: 75 66 99;
+
+  /* Tertiary */
+  --c-tertiary:              118 91 0;
+  --c-on-tertiary:           255 255 255;
+  --c-tertiary-container:    201 167 77;
+  --c-on-tertiary-container: 80 61 0;
+  --c-tertiary-fixed:        255 223 147;
+  --c-tertiary-fixed-dim:    231 195 101;
+  --c-on-tertiary-fixed:     36 26 0;
+  --c-on-tertiary-fixed-variant: 89 68 0;
+
+  /* Error */
+  --c-error:                 186 26 26;
+  --c-on-error:              255 255 255;
+  --c-error-container:       255 218 214;
+  --c-on-error-container:    147 0 10;
+
+  /* Surface Scale */
+  --c-background:            253 247 255;
+  --c-on-background:         29 27 32;
+  --c-surface:               253 247 255;
+  --c-surface-dim:           222 216 224;
+  --c-surface-bright:        253 247 255;
+  --c-surface-container-lowest: 255 255 255;
+  --c-surface-container-low: 248 242 250;
+  --c-surface-container:     242 236 244;
+  --c-surface-container-high: 236 230 238;
+  --c-surface-container-highest: 230 224 233;
+  --c-on-surface:            29 27 32;
+  --c-on-surface-variant:    73 69 81;
+  --c-surface-variant:       230 224 233;
+  --c-surface-tint:          103 80 164;
+
+  /* Outline */
+  --c-outline:               122 117 130;
+  --c-outline-variant:       203 196 210;
+
+  /* Inverse */
+  --c-inverse-surface:       50 47 53;
+  --c-inverse-on-surface:    245 239 247;
+
+  /* ─── Backward-compat aliases (existing pages use these) ── */
+  --bg:       var(--c-background);
+  --bg-card:  var(--c-surface-container);
+  --bg-raised: var(--c-surface-container-high);
+  --bg-nav:   var(--c-surface-container-low);
+  --fg:       var(--c-on-surface);
+  --brand:    var(--c-primary);
 }
 
 .dark {
-  /* Dark theme */
-  --bg:       7   7   13;    /* #07070d           */
-  --bg-card:  12  12  20;    /* #0c0c14           */
-  --bg-raised:19  19  26;    /* #13131a           */
-  --bg-nav:   9   9   15;    /* #09090f           */
-  --fg:       255 255 255;   /* white             */
-  --brand:    108 99  255;   /* #6c63ff           */
+  /* Surface Scale — dark */
+  --c-background:            20 18 24;
+  --c-on-background:         230 225 229;
+  --c-surface:               29 27 32;
+  --c-surface-dim:           28 27 31;
+  --c-surface-bright:        59 56 62;
+  --c-surface-container-lowest: 15 13 19;
+  --c-surface-container-low: 29 27 32;
+  --c-surface-container:     33 31 38;
+  --c-surface-container-high: 43 41 48;
+  --c-surface-container-highest: 54 52 59;
+  --c-on-surface:            230 225 229;
+  --c-on-surface-variant:    203 196 210;
+  --c-surface-variant:       73 69 79;
+  --c-surface-tint:          207 188 255;
+
+  /* Secondary — dark */
+  --c-secondary:             204 194 220;
+  --c-secondary-container:   74 68 88;
+  --c-on-secondary-container: 232 222 248;
+
+  /* Tertiary — dark */
+  --c-on-tertiary-container: 255 223 147;
+
+  /* Error — dark */
+  --c-error:                 242 184 181;
+  --c-error-container:       140 29 24;
+  --c-on-error-container:    249 222 220;
+
+  /* Outline — dark */
+  --c-outline-variant:       73 69 79;
+
+  /* Inverse — dark */
+  --c-inverse-surface:       230 225 229;
+  --c-inverse-on-surface:    29 27 32;
+}
+
+/* ─── Base styles ────────────────────────────────────────────── */
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  @apply antialiased;
+}
+
+/* ─── Glass card utility ─────────────────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel {
+  background: rgba(29, 27, 32, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(203, 196, 210, 0.1);
+}
+
+/* Light mode glass */
+:root .glass-panel,
+html:not(.dark) .glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(122, 117, 130, 0.15);
+}
+
+/* ─── Custom scrollbar ───────────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-outline));
+  border-radius: 10px;
+}
+
+/* ─── Hiring funnel gradient ─────────────────────────────────── */
+.hiring-gradient {
+  background: linear-gradient(135deg, rgb(var(--c-primary)) 0%, rgb(var(--c-primary-container)) 100%);
 }

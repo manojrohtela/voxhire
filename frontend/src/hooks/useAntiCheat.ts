@@ -21,10 +21,13 @@ interface UseAntiCheatOptions {
   onViolation?: (violation: Violation) => void;
   onTerminate?: (violations: Violation[]) => void;
   maxViolations?: number;
+  /** Real session UUID — for API calls */
   sessionId: string;
+  /** URL link_token — used as auth token on candidate-facing endpoints */
+  linkToken: string;
 }
 
-export function useAntiCheat({ onViolation, onTerminate, maxViolations = 3, sessionId }: UseAntiCheatOptions) {
+export function useAntiCheat({ onViolation, onTerminate, maxViolations = 3, sessionId, linkToken }: UseAntiCheatOptions) {
   const [state, setState] = useState<AntiCheatState>({
     isFullscreen: false, violations: [], totalViolations: 0, isTerminated: false, multipleScreensDetected: false,
   });
@@ -53,16 +56,18 @@ export function useAntiCheat({ onViolation, onTerminate, maxViolations = 3, sess
     setState((prev) => ({ ...prev, violations: violationsRef.current, totalViolations: total }));
     onViolation?.(violation);
 
-    // Save to backend
+    // Save to backend — uses real sessionId + linkToken for auth
     const timestampSeconds = (Date.now() - startTimeRef.current) / 1000;
-    interviewsApi.recordViolation(sessionId, type, timestampSeconds).catch(() => {});
+    interviewsApi.recordViolation(sessionId, type, linkToken, timestampSeconds).catch(() => {});
 
     if (total >= maxViolations) {
       terminatedRef.current = true;
       setState((prev) => ({ ...prev, isTerminated: true }));
+      // Mark session terminated on backend
+      interviewsApi.updateStatusByToken(linkToken, "terminated").catch(() => {});
       onTerminate?.(violationsRef.current);
     }
-  }, [onViolation, onTerminate, maxViolations, sessionId]);
+  }, [onViolation, onTerminate, maxViolations, sessionId, linkToken]);
 
   const requestFullscreen = useCallback(async () => {
     try {
