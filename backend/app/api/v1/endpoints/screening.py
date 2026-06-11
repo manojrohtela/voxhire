@@ -130,6 +130,14 @@ async def vapi_webhook(
     analysis = message.get("analysis", {}) or {}
     structured = analysis.get("structuredData", {}) or {}
 
+    # Vapi sometimes wraps structured data as {stepId: {name: "...", result: {...}}}
+    # Unwrap if the top-level keys don't look like our field names
+    if structured and not structured.get("callOutcome") and not structured.get("screeningCompleted"):
+        for val in structured.values():
+            if isinstance(val, dict) and "result" in val:
+                structured = val["result"]
+                break
+
     call_outcome = structured.get("callOutcome", "")
     screening_completed = bool(structured.get("screeningCompleted", False))
 
