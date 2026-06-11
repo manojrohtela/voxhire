@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { candidatesApi } from "@/lib/api-client";
 import { apiWithAuth } from "@/lib/auth";
 
@@ -867,6 +868,7 @@ function JobsModal({ candidate, onClose }: { candidate: any; onClose: () => void
 // ── Main Page ─────────────────────────────────────────────────
 
 export default function CandidatesPage() {
+  const router = useRouter();
   const [candidates, setCandidates] = useState<any[]>([]);
   const [total, setTotal]           = useState(0);
   const [loading, setLoading]       = useState(true);
@@ -1011,9 +1013,10 @@ export default function CandidatesPage() {
                     const jobCount = c.job_count ?? 0;
                     return (
                       <tr key={c.id}
-                        style={{ borderBottom: idx < candidates.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", transition: "background 0.15s" }}
+                        style={{ borderBottom: idx < candidates.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", transition: "background 0.15s", cursor: "pointer" }}
                         onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.025)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        onClick={() => router.push(`/dashboard/candidates/${c.id}`)}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -1033,7 +1036,7 @@ export default function CandidatesPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <button onClick={() => setJobsCandidate(c)}
+                          <button onClick={e => { e.stopPropagation(); setJobsCandidate(c); }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-indigo-400 hover:text-white transition-colors"
                             style={{ background: "rgba(109,86,186,0.12)", border: "1px solid rgba(109,86,186,0.2)" }}>
                             {jobCount} job{jobCount !== 1 ? "s" : ""}
@@ -1052,7 +1055,7 @@ export default function CandidatesPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <button onClick={e => handleDelete(c.id, e)} disabled={deleting === c.id}
+                          <button onClick={e => { e.stopPropagation(); handleDelete(c.id, e); }} disabled={deleting === c.id}
                             className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-600 hover:text-red-400 transition-colors">
                             {deleting === c.id
                               ? <div className="w-3.5 h-3.5 border border-current/30 border-t-current rounded-full animate-spin" />
