@@ -224,17 +224,29 @@ export default function OrgDashboard() {
               <p className="text-sm text-center py-4" style={{ color: "#4b5563" }}>No activity yet</p>
             )}
             {recentActivity.map((c, i) => {
-              const actions = ["applied for", "was shortlisted for", "completed interview for", "was reviewed for", "submitted resume for"];
-              const action = actions[i % actions.length];
-              const badges: { label: string; bg: string; color: string }[] = [
-                { label: "AI SCORE: " + (75 + i * 4), bg: "rgba(109,86,186,0.2)", color: "#a78bfa" },
-                { label: "ON HOLD", bg: "rgba(251,191,36,0.15)", color: "#fbbf24" },
-                { label: "SHORTLISTED", bg: "rgba(52,211,153,0.15)", color: "#34d399" },
-                { label: "REVIEWED", bg: "rgba(255,255,255,0.06)", color: "#6b7280" },
-                { label: "NEW", bg: "rgba(109,86,186,0.2)", color: "#a78bfa" },
-              ];
-              const badge = badges[i % badges.length];
-              const timeAgo = ["2 hours ago", "6 hours ago", "Yesterday", "2 days ago", "3 days ago"][i];
+              const ss = (c as any).screening_status as string | null;
+              const statusMap: Record<string, { action: string; label: string; bg: string; color: string }> = {
+                interview_scheduled: { action: "interview scheduled for", label: "INTERVIEW SCHEDULED", bg: "rgba(52,211,153,0.15)", color: "#34d399" },
+                completed:           { action: "screening completed for", label: "SCREENING DONE",      bg: "rgba(52,211,153,0.15)", color: "#34d399" },
+                partially_completed: { action: "partial screening for",   label: "PARTIAL",             bg: "rgba(251,191,36,0.15)", color: "#fbbf24" },
+                link_sent:           { action: "screening link sent for", label: "LINK SENT",           bg: "rgba(109,86,186,0.2)",  color: "#a78bfa" },
+                calling:             { action: "screening in progress for","label": "IN PROGRESS",      bg: "rgba(59,130,246,0.2)",  color: "#60a5fa" },
+                callback_requested:  { action: "callback requested for",  label: "CALLBACK",            bg: "rgba(251,191,36,0.15)", color: "#fbbf24" },
+                declined:            { action: "declined screening for",  label: "DECLINED",            bg: "rgba(239,68,68,0.15)",  color: "#f87171" },
+                no_answer:           { action: "no answer for",           label: "NO ANSWER",           bg: "rgba(156,163,175,0.15)","color": "#9ca3af" },
+              };
+              const statusInfo = (ss && statusMap[ss]) || { action: "added as candidate for", label: "NEW", bg: "rgba(109,86,186,0.2)", color: "#a78bfa" };
+
+              const timeAgo = (() => {
+                if (!c.updated_at && !c.created_at) return "";
+                const diff = Date.now() - new Date((c.updated_at || c.created_at) as string).getTime();
+                const mins = Math.floor(diff / 60000);
+                if (mins < 60) return `${mins}m ago`;
+                const hrs = Math.floor(mins / 60);
+                if (hrs < 24) return `${hrs}h ago`;
+                return `${Math.floor(hrs / 24)}d ago`;
+              })();
+
               return (
                 <div
                   key={c.id}
@@ -248,14 +260,14 @@ export default function OrgDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white">
                       <span className="font-medium">{c.name}</span>
-                      <span style={{ color: "#6b7280" }}> {action} </span>
+                      <span style={{ color: "#6b7280" }}> {statusInfo.action} </span>
                       <span className="font-medium" style={{ color: "#a78bfa" }}>{c.applied_role || "a role"}</span>
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "#4b5563" }}>{timeAgo}</p>
                   </div>
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0"
-                    style={{ background: badge.bg, color: badge.color }}>
-                    {badge.label}
+                    style={{ background: statusInfo.bg, color: statusInfo.color }}>
+                    {statusInfo.label}
                   </span>
                 </div>
               );

@@ -32,6 +32,7 @@ from app.db.models import (
     ScreeningCall, ScreeningEvent, ScreeningInvitation,
     ScreeningEventType, ScreeningStatus,
     InterviewSession, InterviewStatus,
+    CandidateJob, CandidateJobStatus,
     User,
 )
 from app.core.config import settings
@@ -247,6 +248,19 @@ async def vapi_webhook(
                 )
                 db.add(interview)
                 await db.flush()
+
+                # Update candidate-job status to interview_scheduled
+                if sc.job_id:
+                    cj_result = await db.execute(
+                        select(CandidateJob).where(
+                            CandidateJob.candidate_id == sc.candidate_id,
+                            CandidateJob.job_id == sc.job_id,
+                        )
+                    )
+                    cj = cj_result.scalar_one_or_none()
+                    if cj:
+                        cj.status = CandidateJobStatus.INTERVIEW_SCHEDULED
+
                 await _add_event(db, candidate.id, ScreeningEventType.INTERVIEW_SCHEDULED.value, sc.id, {
                     "interviewAvailability": sc.interview_availability,
                     "interviewLink": interview.interview_link,

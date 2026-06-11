@@ -94,6 +94,7 @@ def candidate_to_dict(c: Candidate) -> dict:
         "overall_rating": c.overall_rating,
         "parsed_profile": c.parsed_profile,
         "resume_url": c.resume_url,
+        "screening_status": c.screening_status,
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }
