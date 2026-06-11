@@ -147,9 +147,10 @@ export default function ScreeningPage({ params }: { params: { token: string } })
 
           setTranscript((prev) => {
             const lastIdx = prev.length - 1;
-            if (!isFinal && lastIdx >= 0 && prev[lastIdx].role === role && !prev[lastIdx].isFinal) {
+            // Replace the pending (partial/italic) entry when it's the same role
+            if (lastIdx >= 0 && prev[lastIdx].role === role && !prev[lastIdx].isFinal) {
               const updated = [...prev];
-              updated[lastIdx] = { role, text: msg.transcript, isFinal: false };
+              updated[lastIdx] = { role, text: msg.transcript, isFinal };
               return updated;
             }
             return [...prev, { role, text: msg.transcript, isFinal }];
@@ -172,6 +173,19 @@ export default function ScreeningPage({ params }: { params: { token: string } })
       // Start the Vapi call
       await vapi.start(config.vapi_assistant_id, {
         metadata: config.metadata,
+        // Prevent premature hang-up due to candidate thinking silently
+        silenceTimeoutSeconds: 90,
+        // Improve microphone sensitivity and end-of-speech detection
+        backgroundDenoisingEnabled: true,
+        startSpeakingPlan: {
+          waitSeconds: 0.4,
+          smartEndpointingEnabled: true,
+        },
+        stopSpeakingPlan: {
+          numWordsToInterruptAssistant: 1,
+          voiceSeconds: 0.2,
+          backoffSeconds: 1.0,
+        },
       } as any);
       addDebug("vapi.start() resolved");
 
