@@ -16,6 +16,7 @@ Outbound phone flow (legacy):
 """
 
 import secrets
+import uuid
 import httpx
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -30,6 +31,7 @@ from app.db.models import (
     Candidate, Organization, JobDescription,
     ScreeningCall, ScreeningEvent, ScreeningInvitation,
     ScreeningEventType, ScreeningStatus,
+    InterviewSession, InterviewStatus,
     User,
 )
 from app.core.config import settings
@@ -225,6 +227,27 @@ async def vapi_webhook(
             "interviewAvailability": sc.interview_availability,
             "candidateIntent": sc.candidate_intent,
         })
+
+        # Auto-schedule interview if candidate is available
+        candidate_available = bool(structured.get("candidateAvailableForInterview", False))
+        if candidate_available:
+            link_token = str(uuid.uuid4()).replace("-", "")
+            base_url = settings.FRONTEND_URL.rstrip("/")
+            interview = InterviewSession(
+                id=str(uuid.uuid4()),
+                candidate_id=sc.candidate_id,
+                org_id=sc.org_id,
+                created_by=sc.initiated_by,
+                job_id=sc.job_id,
+                link_token=link_token,
+                interview_link=f"{base_url}/interview/{link_token}",
+                status=InterviewStatus.SCHEDULED,
+            )
+            db.add(interview)
+            await _add_event(db, candidate.id, ScreeningEventType.INTERVIEW_SCHEDULED.value, sc.id, {
+                "interviewAvailability": sc.interview_availability,
+                "interviewLink": interview.interview_link,
+            })
 
     # ── SCENARIO 2: CALLBACK_REQUESTED ────────────────────────
     elif resolved_outcome == "CALLBACK_REQUESTED":
