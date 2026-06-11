@@ -1,14 +1,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-function extractSubdomain(hostname: string): string | null {
-  // Strip port: "acme.localhost:3000" → "acme.localhost"
-  const withoutPort = hostname.split(":")[0];
-  const parts = withoutPort.split(".");
+// Set NEXT_PUBLIC_APP_DOMAIN in Vercel env vars to your root domain
+// e.g. "voxhire.heyagenthive.com"
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "";
 
-  // "acme.localhost" → ["acme", "localhost"] → subdomain = "acme"
-  // "localhost"      → ["localhost"]         → no subdomain
-  // "acme.voxhire.com" → ["acme", "voxhire", "com"] → subdomain = "acme"
+function extractSubdomain(hostname: string): string | null {
+  const withoutPort = hostname.split(":")[0];
+
+  // Production: if hostname IS the root domain → no subdomain
+  if (APP_DOMAIN && withoutPort === APP_DOMAIN) return null;
+
+  // Production: if hostname is {something}.{APP_DOMAIN} → extract subdomain
+  if (APP_DOMAIN && withoutPort.endsWith(`.${APP_DOMAIN}`)) {
+    const sub = withoutPort.slice(0, withoutPort.length - APP_DOMAIN.length - 1);
+    return sub === "www" ? null : sub;
+  }
+
+  // Local dev fallback: "acme.localhost:3000" → "acme"
+  const parts = withoutPort.split(".");
   if (parts.length < 2) return null;
   const sub = parts[0];
   if (sub === "www" || sub === "localhost") return null;
