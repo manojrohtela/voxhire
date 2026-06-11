@@ -111,6 +111,7 @@ class ScreeningEventType(str, enum.Enum):
     CALL_DROPPED         = "CALL_DROPPED"
     NO_ANSWER            = "NO_ANSWER"
     RETRY_SCHEDULED      = "RETRY_SCHEDULED"
+    INTERVIEW_SCHEDULED  = "INTERVIEW_SCHEDULED"
 
 
 # ─── Organizations ─────────────────────────────────────────────
