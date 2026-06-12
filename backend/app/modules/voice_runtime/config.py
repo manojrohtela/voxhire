@@ -21,9 +21,11 @@ BARGE_IN_FRAMES = 15            # ~480 ms of sustained speech to interrupt TTS (
 THINKING_RESUME_FRAMES = 8      # ~256 ms of speech cancels an in-flight LLM turn
 
 # ── Smart endpointing (when do we decide the user finished their turn) ──────
-ENDPOINT_COMPLETE_S = 1.5       # transcript ends with . ? !  → handoff (was 0.7 — too fast)
-ENDPOINT_DEFAULT_S = 2.5        # no terminal punctuation (was 1.1 — users need time to think)
-ENDPOINT_INCOMPLETE_S = 3.5     # trailing comma / conjunction / filler — they're mid-thought (was 1.8)
+# Note: Deepgram punctuate=true adds periods, which would make all turns look
+# "complete". Use a single flat threshold so punctuation never shortcuts the wait.
+ENDPOINT_COMPLETE_S = 3.0       # kept equal to default — punctuation shortcut disabled
+ENDPOINT_DEFAULT_S = 3.0        # 3s of VAD silence before committing a turn
+ENDPOINT_INCOMPLETE_S = 5.0     # trailing comma / conjunction / filler — they're mid-thought
 FINALIZE_GRACE_S = 0.6          # extra wait after forcing Deepgram to finalize interims
 
 # Words that signal the candidate is mid-sentence even though they paused

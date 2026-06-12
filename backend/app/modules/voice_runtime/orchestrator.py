@@ -208,7 +208,9 @@ class VoiceSession:
             self.consec_speech += 1
         else:
             self.consec_speech = 0
-        if prob >= C.VAD_SPEECH_PROB:
+        # Only track user speech while we're listening — echo during SPEAKING
+        # would otherwise advance this timestamp and corrupt the silence timer.
+        if prob >= C.VAD_SPEECH_PROB and self.state == AgentState.LISTENING:
             self.last_speech_at = now
 
         if self.interrupting or self.closing:

@@ -38,8 +38,8 @@ def _build_url() -> str:
         "punctuate": "true",
         "smart_format": "true",
         "interim_results": "true",
-        "endpointing": "300",
-        "utterance_end_ms": "1000",
+        "endpointing": "false",
+        "utterance_end_ms": "3000",
         "vad_events": "true",
         "filler_words": "false",
     }
