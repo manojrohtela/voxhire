@@ -181,9 +181,12 @@ class VoiceSession:
                 await self._on_control(text)
 
     def _on_audio(self, data: bytes) -> None:
-        # Always forward to Deepgram — the socket stays hot even while the
-        # agent is speaking, so interrupting words are never lost.
-        self.dg.feed_audio(data)
+        # Gate Deepgram during SPEAKING: mic audio contains speaker echo which
+        # Deepgram transcribes as user speech, causing the AI to respond to
+        # its own voice. VAD always runs for barge-in detection.
+        # During THINKING we still feed Deepgram — no audio is playing yet.
+        if self.state != AgentState.SPEAKING:
+            self.dg.feed_audio(data)
 
         # VAD operates on exact 512-sample windows
         self._pcm_buf.extend(data)
