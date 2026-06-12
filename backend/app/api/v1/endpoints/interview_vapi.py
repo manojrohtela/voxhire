@@ -99,7 +99,7 @@ async def get_vapi_config(
 
     # Build Vapi assistant overrides — dynamic context injected into the assistant
     variable_values = {
-        "jobTitle": session.interview_type or (candidate.applied_role if candidate else "Software Engineer"),
+        "jobTitle": session.custom_job_title or (candidate.applied_role if candidate else "Software Engineer"),
         "candidateName": candidate.name if candidate else "Candidate",
         "orgName": org.name if org else "",
         "experienceLevel": _map_difficulty_to_level(session.difficulty or "Medium"),

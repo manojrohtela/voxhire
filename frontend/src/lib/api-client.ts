@@ -119,6 +119,15 @@ export const interviewsApi = {
     ai_personality?: string;
   }) => request<any>("/api/v1/interviews", { method: "POST", body: JSON.stringify(body) }),
 
+  updateConfig: (id: string, body: {
+    custom_job_title?: string;
+    interview_type?: string;
+    difficulty?: string;
+    ai_personality?: string;
+    duration_minutes?: number;
+    focus_skills?: string[];
+  }) => request<any>(`/api/v1/interviews/${id}/config`, { method: "PATCH", body: JSON.stringify(body) }),
+
   // Recruiter-side status update (JWT auth)
   updateStatus: (id: string, status: string) =>
     request(`/api/v1/interviews/${id}/status`, { method: "PUT", body: JSON.stringify({ status }) }),

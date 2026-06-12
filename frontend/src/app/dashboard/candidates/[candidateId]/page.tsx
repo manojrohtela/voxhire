@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useCandidate } from "@/hooks/useData";
-import { candidatesApi } from "@/lib/api-client";
+import { candidatesApi, interviewsApi } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
@@ -40,7 +40,7 @@ const EVENT_ICON: Record<string, string> = {
   RETRY_SCHEDULED:      "🔄",
 };
 
-type Tab = "report" | "transcript" | "recording" | "screening";
+type Tab = "report" | "transcript" | "recording" | "screening" | "setup";
 
 interface ScreeningData {
   screening_status: string;
@@ -100,6 +100,18 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
   const [screeningAction, setScreeningAction] = useState<string | null>(null);
   const [screeningError, setScreeningError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Interview setup state
+  const [setupSaving, setSetupSaving] = useState(false);
+  const [setupSaved, setSetupSaved] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const [setupJobTitle, setSetupJobTitle] = useState("");
+  const [setupInterviewType, setSetupInterviewType] = useState("Technical");
+  const [setupDifficulty, setSetupDifficulty] = useState("Medium");
+  const [setupPersonality, setSetupPersonality] = useState("Neutral");
+  const [setupDuration, setSetupDuration] = useState(45);
+  const [setupSkills, setSetupSkills] = useState<string[]>([]);
+  const [setupSkillInput, setSetupSkillInput] = useState("");
 
   const loadScreening = useCallback(async () => {
     if (!params.candidateId) return;
@@ -174,6 +186,29 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
 
   const latestSession = c.interview_sessions?.[0];
   const rating = c.overall_rating || "Pending";
+
+  // Sync setup form from session whenever candidate data loads
+  useEffect(() => {
+    if (!latestSession) return;
+    setSetupJobTitle(latestSession.custom_job_title || c.applied_role || "");
+    setSetupInterviewType(latestSession.interview_type || "Technical");
+    setSetupDifficulty(latestSession.difficulty || "Medium");
+    setSetupPersonality(latestSession.ai_personality || "Neutral");
+    setSetupDuration(latestSession.duration_minutes || 45);
+    // Skills: use focus_skills if set, else derive from candidate parsed_profile
+    if (latestSession.focus_skills?.length > 0) {
+      setSetupSkills(latestSession.focus_skills);
+    } else {
+      const profile = (c as any).parsed_profile as any;
+      if (profile?.skills) {
+        const all: string[] = [];
+        for (const cat of ["technical", "languages", "frameworks", "tools"]) {
+          if (Array.isArray(profile.skills[cat])) all.push(...profile.skills[cat]);
+        }
+        setSetupSkills(all.slice(0, 12));
+      }
+    }
+  }, [c.id]);
   const ratingStyle = RATING_STYLE[rating] || RATING_STYLE["Pending"];
   const skills = c.skills || [];
   const violations = latestSession?.violations || [];
@@ -234,12 +269,12 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 border-b border-faint">
-          {(["report", "transcript", "recording", "screening"] as Tab[]).map((tab) => (
+          {(["report", "transcript", "recording", "screening", "setup"] as Tab[]).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-4 py-2.5 text-sm font-medium capitalize transition-all border-b-2 -mb-px ${
                 activeTab === tab ? "text-violet-300 border-violet-500" : "text-foreground-3 border-transparent hover:text-foreground-2"
               }`}>
-              {tab === "report" ? "📊 Report" : tab === "transcript" ? "📝 Transcript" : tab === "recording" ? "🎥 Recording" : "📞 Screening"}
+              {tab === "report" ? "📊 Report" : tab === "transcript" ? "📝 Transcript" : tab === "recording" ? "🎥 Recording" : tab === "screening" ? "📞 Screening" : "⚙️ Interview Setup"}
             </button>
           ))}
         </div>
@@ -763,6 +798,212 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                     <p className="text-foreground-5 text-xs">Click "Send Screening Link" to invite the candidate to a web-based Vapi screening</p>
                   </div>
                 )}
+              </>
+            )}
+          </div>
+        )}
+        {/* ── INTERVIEW SETUP ────────────────────────────────────── */}
+        {activeTab === "setup" && (
+          <div className="max-w-2xl space-y-5">
+            {!latestSession ? (
+              <div className="bg-surface border border-base rounded-2xl p-8 text-center">
+                <p className="text-foreground-4 text-sm mb-3">No interview scheduled yet</p>
+                <Link href={`/dashboard/schedule?candidate=${c.id}`}
+                  className="px-4 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-lg text-sm hover:bg-violet-500/20 transition-colors">
+                  Schedule Interview →
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="bg-surface border border-base rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h2 className="text-foreground text-sm font-semibold">Vapi Interview Configuration</h2>
+                      <p className="text-foreground-4 text-xs mt-0.5">These values are sent to the AI interviewer when the session starts</p>
+                    </div>
+                    <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                      latestSession.status === "scheduled" ? "text-violet-400 bg-violet-500/10 border-violet-500/20"
+                      : latestSession.status === "in_progress" ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
+                      : "text-foreground-3 bg-ink/5 border-base"
+                    }`}>{latestSession.status}</span>
+                  </div>
+
+                  {/* Job Title */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">Job Title</label>
+                      <input
+                        type="text"
+                        value={setupJobTitle}
+                        onChange={(e) => setSetupJobTitle(e.target.value)}
+                        placeholder={c.applied_role || "e.g. Senior Python Engineer"}
+                        className="w-full bg-surface-hi border border-base rounded-xl px-3 py-2.5 text-sm text-foreground-2 placeholder-foreground-5 focus:outline-none focus:border-violet-500/50 transition-colors"
+                      />
+                      <p className="text-foreground-5 text-xs mt-1">What Vapi tells the AI the role is called</p>
+                    </div>
+
+                    {/* Interview Type */}
+                    <div>
+                      <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">Interview Type</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {["Technical", "HR", "Leadership", "Sales"].map((t) => (
+                          <button key={t} onClick={() => setSetupInterviewType(t)}
+                            className={`py-2 rounded-lg text-xs font-medium border transition-all ${
+                              setupInterviewType === t ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2 hover:border-strong"
+                            }`}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Difficulty */}
+                    <div>
+                      <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">Difficulty</label>
+                      <div className="flex gap-2">
+                        {["Easy", "Medium", "Hard"].map((d) => (
+                          <button key={d} onClick={() => setSetupDifficulty(d)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                              setupDifficulty === d ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2 hover:border-strong"
+                            }`}>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Duration */}
+                    <div>
+                      <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">Duration</label>
+                      <div className="flex gap-2">
+                        {[30, 45, 60, 90].map((d) => (
+                          <button key={d} onClick={() => setSetupDuration(d)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                              setupDuration === d ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2 hover:border-strong"
+                            }`}>
+                            {d}m
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* AI Personality */}
+                    <div>
+                      <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">AI Personality</label>
+                      <div className="flex gap-2">
+                        {["Friendly", "Neutral", "Strict"].map((p) => (
+                          <button key={p} onClick={() => setSetupPersonality(p)}
+                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                              setupPersonality === p ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2 hover:border-strong"
+                            }`}>
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Skills */}
+                    <div>
+                      <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-1">
+                        Required Skills & Focus Areas
+                      </label>
+                      <p className="text-foreground-5 text-xs mb-2">Sent as both <code className="bg-ink/10 px-1 rounded">requiredSkills</code> and <code className="bg-ink/10 px-1 rounded">focusAreas</code> to Vapi</p>
+                      <div className="flex flex-wrap gap-2 mb-3 min-h-[36px] p-3 bg-surface-hi border border-base rounded-xl">
+                        {setupSkills.map((skill) => (
+                          <span key={skill} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium">
+                            {skill}
+                            <button onClick={() => setSetupSkills(setupSkills.filter((s) => s !== skill))}
+                              className="text-violet-400 hover:text-red-400 transition-colors leading-none">×</button>
+                          </span>
+                        ))}
+                        {setupSkills.length === 0 && <span className="text-foreground-5 text-xs italic">No skills added</span>}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={setupSkillInput}
+                          onChange={(e) => setSetupSkillInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if ((e.key === "Enter" || e.key === ",") && setupSkillInput.trim()) {
+                              e.preventDefault();
+                              const s = setupSkillInput.trim().replace(/,$/, "");
+                              if (s && !setupSkills.includes(s)) setSetupSkills([...setupSkills, s]);
+                              setSetupSkillInput("");
+                            }
+                          }}
+                          placeholder="Type skill and press Enter…"
+                          className="flex-1 bg-surface-hi border border-base rounded-lg px-3 py-2 text-sm text-foreground-2 placeholder-foreground-5 focus:outline-none focus:border-violet-500/50 transition-colors"
+                        />
+                        <button
+                          onClick={() => {
+                            const s = setupSkillInput.trim();
+                            if (s && !setupSkills.includes(s)) setSetupSkills([...setupSkills, s]);
+                            setSetupSkillInput("");
+                          }}
+                          disabled={!setupSkillInput.trim()}
+                          className="px-4 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-300 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-violet-500/20 transition-colors">
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save */}
+                  <div className="mt-6 flex items-center gap-3">
+                    <button
+                      disabled={setupSaving}
+                      onClick={async () => {
+                        setSetupSaving(true);
+                        setSetupError(null);
+                        setSetupSaved(false);
+                        try {
+                          await interviewsApi.updateConfig(latestSession.id, {
+                            custom_job_title: setupJobTitle,
+                            interview_type: setupInterviewType,
+                            difficulty: setupDifficulty,
+                            ai_personality: setupPersonality,
+                            duration_minutes: setupDuration,
+                            focus_skills: setupSkills,
+                          });
+                          setSetupSaved(true);
+                          setTimeout(() => setSetupSaved(false), 3000);
+                        } catch (e: any) {
+                          setSetupError(e.message || "Failed to save");
+                        } finally {
+                          setSetupSaving(false);
+                        }
+                      }}
+                      className="px-5 py-2.5 bg-violet-500 hover:bg-violet-400 disabled:opacity-50 text-white font-semibold rounded-xl text-sm transition-colors flex items-center gap-2">
+                      {setupSaving
+                        ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</>
+                        : setupSaved
+                        ? <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>Saved!</>
+                        : "Save Configuration"}
+                    </button>
+                    {setupError && <p className="text-red-400 text-xs">{setupError}</p>}
+                    <p className="text-foreground-5 text-xs ml-auto">Changes take effect when the interview starts</p>
+                  </div>
+                </div>
+
+                {/* Preview card */}
+                <div className="bg-[#0d1117] border border-[#1e1e2e] rounded-2xl p-4">
+                  <p className="text-foreground-4 text-xs font-medium uppercase tracking-wider mb-3">What Vapi will receive</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                    {[
+                      ["jobTitle", setupJobTitle || c.applied_role || "—"],
+                      ["interviewType", setupInterviewType],
+                      ["difficulty", setupDifficulty],
+                      ["durationMinutes", `${setupDuration} min`],
+                      ["aiPersonality", setupPersonality],
+                      ["requiredSkills / focusAreas", setupSkills.length > 0 ? setupSkills.join(", ") : "From resume"],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex gap-2">
+                        <span className="text-foreground-5 shrink-0 font-mono">{k}:</span>
+                        <span className="text-foreground-3 truncate">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </>
             )}
           </div>

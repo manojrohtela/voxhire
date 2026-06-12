@@ -102,6 +102,7 @@ def session_to_dict(s: InterviewSession, include_candidate: bool = False) -> dic
         "question_strategy": s.question_strategy,
         "ai_personality": s.ai_personality,
         "focus_skills": s.focus_skills or [],
+        "custom_job_title": s.custom_job_title,
         "created_at": s.created_at.isoformat() if s.created_at else None,
         # Vapi + evaluation fields
         "vapi_call_id": s.vapi_call_id,
@@ -182,6 +183,50 @@ async def create_interview(
         focus_skills=body.focus_skills or [],
     )
     db.add(session)
+    await db.flush()
+    return session_to_dict(session)
+
+
+class UpdateInterviewConfigRequest(BaseModel):
+    custom_job_title: Optional[str] = None
+    interview_type: Optional[str] = None
+    difficulty: Optional[str] = None
+    ai_personality: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    focus_skills: Optional[list[str]] = None
+
+
+@router.patch("/{interview_id}/config")
+async def update_interview_config(
+    interview_id: str,
+    body: UpdateInterviewConfigRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update Vapi interview configuration fields before the interview starts."""
+    result = await db.execute(
+        select(InterviewSession).where(
+            InterviewSession.id == interview_id,
+            InterviewSession.org_id == current_user["org_id"],
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Interview session not found")
+
+    if body.custom_job_title is not None:
+        session.custom_job_title = body.custom_job_title.strip() or None
+    if body.interview_type is not None:
+        session.interview_type = body.interview_type
+    if body.difficulty is not None:
+        session.difficulty = body.difficulty
+    if body.ai_personality is not None:
+        session.ai_personality = body.ai_personality
+    if body.duration_minutes is not None:
+        session.duration_minutes = body.duration_minutes
+    if body.focus_skills is not None:
+        session.focus_skills = body.focus_skills
+
     await db.flush()
     return session_to_dict(session)
 
