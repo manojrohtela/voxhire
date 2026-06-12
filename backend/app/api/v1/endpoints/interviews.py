@@ -101,6 +101,19 @@ def session_to_dict(s: InterviewSession, include_candidate: bool = False) -> dic
         "question_strategy": s.question_strategy,
         "ai_personality": s.ai_personality,
         "created_at": s.created_at.isoformat() if s.created_at else None,
+        # Vapi + evaluation fields
+        "vapi_call_id": s.vapi_call_id,
+        "evaluation_status": s.evaluation_status or "pending",
+        "executive_summary": s.executive_summary,
+        "topics_covered": s.topics_covered,
+        "topics_missing": s.topics_missing,
+        "topics_needs_evaluation": s.topics_needs_evaluation,
+        "communication_score": s.communication_score,
+        "confidence_score": s.confidence_score,
+        "clarity_score": s.clarity_score,
+        "resume_claim_verification": s.resume_claim_verification,
+        "candidate_questions": s.candidate_questions,
+        "interview_timeline": s.interview_timeline,
     }
 
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAntiCheat, ViolationType } from "@/hooks/useAntiCheat";
-import { useStreamingInterview } from "@/hooks/useStreamingInterview";
+import { useVapiInterview } from "@/hooks/useVapiInterview";
 import { interviewsApi } from "@/lib/api-client";
 
 const VIOLATION_MESSAGES: Record<ViolationType, string> = {
@@ -96,16 +96,10 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
     isMediaReady, mediaError, attachVideo,
     initMedia, beginInterview,
     transcript, isListening, isCandidateThinking, isAIThinking, isAISpeaking,
-  } = useStreamingInterview({
-    sessionId:      session.sessionId,
+  } = useVapiInterview({
+    sessionId:  session.sessionId,
     linkToken,
-    candidateName:  session.candidateName,
-    appliedRole:    session.appliedRole,
-    skillsToAssess: session.skillsToAssess,
-    difficulty:     session.difficulty,
-    aiPersonality:  session.aiPersonality,
-    interviewType:  session.interviewType,
-    onComplete:     handleComplete,
+    onComplete: handleComplete,
   });
 
   const { isFullscreen, isTerminated, totalViolations, requestFullscreen } = useAntiCheat({

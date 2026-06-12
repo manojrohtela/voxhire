@@ -287,6 +287,23 @@ class InterviewSession(Base):
     # Job link (which job is this interview for)
     job_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("job_descriptions.id", ondelete="SET NULL"), nullable=True)
 
+    # Vapi interview integration
+    vapi_call_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True)
+    vapi_transcript: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+
+    # LLM evaluation output (populated after interview by evaluation engine)
+    evaluation_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, default="pending")
+    executive_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    topics_covered: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    topics_missing: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    topics_needs_evaluation: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    communication_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    confidence_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    clarity_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    resume_claim_verification: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    candidate_questions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    interview_timeline: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+
     # Email
     invite_email_sent: Mapped[bool] = mapped_column(Boolean, default=False)
     invite_email_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

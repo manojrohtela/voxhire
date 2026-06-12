@@ -22,10 +22,14 @@ class Settings(BaseSettings):
     SUPER_ADMIN_SEED_KEY: str = ""
 
     # Vapi screening call integration
-    VAPI_API_KEY: str = ""           # Vapi private key — used to trigger outbound calls
-    VAPI_PUBLIC_KEY: str = ""        # Vapi public key — used by the browser Web SDK
-    VAPI_ASSISTANT_ID: str = ""      # Vapi assistant ID configured for screening
-    VAPI_WEBHOOK_SECRET: str = ""    # Shared secret Vapi sends in X-Vapi-Secret header
+    VAPI_API_KEY: str = ""                      # Vapi private key — used to trigger outbound calls
+    VAPI_PUBLIC_KEY: str = ""                   # Vapi public key — used by the browser Web SDK
+    VAPI_ASSISTANT_ID: str = ""                 # Vapi assistant ID configured for screening
+    VAPI_WEBHOOK_SECRET: str = ""               # Shared secret Vapi sends in X-Vapi-Secret header
+
+    # Vapi interview integration (separate assistant)
+    VAPI_INTERVIEW_ASSISTANT_ID: str = "8e44dddb-97a5-4cc5-90f3-2ef130e39fcf"
+    VAPI_INTERVIEW_WEBHOOK_SECRET: str = ""     # Set in Vapi dashboard → interview assistant webhook
 
     # SMTP (optional — if empty, invitation link is returned but no email is sent)
     SMTP_HOST: str = ""
