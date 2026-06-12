@@ -36,7 +36,7 @@ from app.db.models import (
     User,
 )
 from app.core.config import settings
-from app.core.email import send_screening_invitation
+from app.core.email import send_screening_invitation, send_interview_invitation
 from app.api.v1.endpoints.auth import get_current_user
 
 router = APIRouter()
@@ -101,6 +101,249 @@ def _event_to_dict(ev: ScreeningEvent) -> dict:
     }
 
 
+# ─── Shared processing helper ──────────────────────────────────
+
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+_WEEKDAY_MAP = {
+    "monday": 0, "mon": 0,
+    "tuesday": 1, "tue": 1,
+    "wednesday": 2, "wed": 2,
+    "thursday": 3, "thu": 3,
+    "friday": 4, "fri": 4,
+    "saturday": 5, "sat": 5,
+    "sunday": 6, "sun": 6,
+}
+
+
+def _resolve_relative_date(availability_text: str, call_ended_at: datetime) -> Optional[datetime]:
+    """
+    Convert natural-language availability to an absolute UTC datetime.
+    Candidate times are always treated as IST (all clients are India-based).
+    Returns None if the resolved date is in the past or unrecognisable.
+
+    Handles:
+      "today", "tomorrow", "day after tomorrow"
+      "this friday", "friday", "next friday"
+      "next monday at 10 am", "saturday 3 pm", etc.
+    """
+    if not availability_text:
+        return None
+    import re
+    text = availability_text.lower().strip()
+    base_utc = call_ended_at.replace(tzinfo=timezone.utc) if call_ended_at.tzinfo is None else call_ended_at.astimezone(timezone.utc)
+    base_ist = base_utc.astimezone(_IST)
+
+    # ── Extract time (e.g. "4 pm", "10 am", "16:00") ─────────────────────────
+    hour, minute = None, 0
+    m = re.search(r'(\d{1,2})\s*(am|pm)', text)
+    if m:
+        h = int(m.group(1))
+        if m.group(2) == "pm" and h != 12:
+            h += 12
+        elif m.group(2) == "am" and h == 12:
+            h = 0
+        hour = h
+    else:
+        m2 = re.search(r'(\d{1,2}):(\d{2})', text)
+        if m2:
+            hour, minute = int(m2.group(1)), int(m2.group(2))
+
+    # ── Resolve day ───────────────────────────────────────────────────────────
+    day_ist = None
+
+    if "today" in text:
+        day_ist = base_ist.replace(hour=hour or 10, minute=minute, second=0, microsecond=0)
+
+    elif "day after tomorrow" in text or "day after" in text:
+        day_ist = (base_ist + timedelta(days=2)).replace(hour=hour or 10, minute=minute, second=0, microsecond=0)
+
+    elif "tomorrow" in text:
+        day_ist = (base_ist + timedelta(days=1)).replace(hour=hour or 10, minute=minute, second=0, microsecond=0)
+
+    else:
+        # Look for a weekday name
+        for name, target_wd in _WEEKDAY_MAP.items():
+            if name in text:
+                current_wd = base_ist.weekday()          # Monday=0 … Sunday=6
+                days_ahead = (target_wd - current_wd) % 7
+
+                if "next" in text or "next week" in text:
+                    # "next friday" = the Friday of the FOLLOWING week,
+                    # not the nearest upcoming Friday this week.
+                    if days_ahead == 0:
+                        days_ahead = 7   # same weekday → jump one full week
+                    else:
+                        days_ahead += 7  # e.g. Thu→Fri = 1 day, but "next fri" = 8 days
+                else:
+                    # "this friday" or bare "friday" = nearest future occurrence
+                    if days_ahead == 0:
+                        days_ahead = 7   # same weekday today → next week
+
+                day_ist = (base_ist + timedelta(days=days_ahead)).replace(
+                    hour=hour or 10, minute=minute, second=0, microsecond=0
+                )
+                break
+
+    if day_ist is None:
+        # Completely unrecognisable — don't auto-schedule
+        return None
+
+    resolved_utc = day_ist.astimezone(timezone.utc)
+    if resolved_utc <= datetime.now(timezone.utc):
+        return None  # Past — do not auto-schedule
+    return resolved_utc
+
+
+async def _process_screening_result(
+    *,
+    db: AsyncSession,
+    sc: ScreeningCall,
+    candidate,
+    resolved_outcome: str,
+    screening_completed: bool,
+    structured: dict,
+    ended_reason: str,
+):
+    """Populate ScreeningCall fields and drive candidate/interview state."""
+    sc.call_outcome = resolved_outcome
+    sc.screening_completed = screening_completed
+    sc.ended_at = _utcnow()
+    sc.work_mode = structured.get("workMode", "")
+    sc.current_ctc = structured.get("currentCTC", "")
+    sc.current_role = structured.get("currentRole", "")
+    sc.expected_ctc = structured.get("expectedCTC", "")
+    sc.callback_date = structured.get("callbackDate", "")
+    sc.callback_time = structured.get("callbackTime", "")
+    sc.notice_period = structured.get("noticePeriod", "")
+    sc.additional_notes = structured.get("additionalNotes", "")
+    sc.candidate_intent = structured.get("candidateIntent", "")
+    sc.total_experience = structured.get("totalExperience", "")
+    sc.interview_availability = structured.get("interviewAvailability", "")
+    sc.candidate_question = structured.get("candidateQuestion", "")
+
+    # Expire the related screening invitation immediately after the call ends
+    if sc.id:
+        inv_result = await db.execute(
+            select(ScreeningInvitation).where(ScreeningInvitation.screening_call_id == sc.id)
+        )
+        inv = inv_result.scalar_one_or_none()
+        if inv:
+            inv.is_used = True
+
+    if resolved_outcome == "COMPLETED":
+        candidate.screening_status = ScreeningStatus.COMPLETED.value
+        await _add_event(db, candidate.id, ScreeningEventType.SCREENING_COMPLETED.value, sc.id, {
+            "callOutcome": resolved_outcome,
+            "callSummary": structured.get("callSummary", ""),
+            "interviewAvailability": sc.interview_availability,
+            "candidateIntent": sc.candidate_intent,
+        })
+
+        candidate_available = bool(structured.get("candidateAvailableForInterview", False))
+        if candidate_available:
+            # Validate the requested time is in the future
+            resolved_dt = _resolve_relative_date(sc.interview_availability, sc.ended_at or _utcnow())
+            # If the candidate gave a specific time but it resolved to the past, skip auto-schedule
+            past_blocked = (resolved_dt is None and bool(sc.interview_availability))
+            if past_blocked:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Interview availability '%s' resolved to past — skipping auto-schedule",
+                    sc.interview_availability,
+                )
+            if not past_blocked:
+                try:
+                    link_token = str(uuid.uuid4()).replace("-", "")
+                    base_url = settings.FRONTEND_URL.rstrip("/")
+                    interview = InterviewSession(
+                        id=str(uuid.uuid4()),
+                        candidate_id=sc.candidate_id,
+                        org_id=sc.org_id,
+                        created_by=sc.initiated_by,
+                        job_id=sc.job_id,
+                        link_token=link_token,
+                        interview_link=f"{base_url}/interview/{link_token}",
+                        status=InterviewStatus.SCHEDULED,
+                        scheduled_at=resolved_dt,
+                    )
+                    db.add(interview)
+                    await db.flush()
+
+                    if sc.job_id:
+                        cj_result = await db.execute(
+                            select(CandidateJob).where(
+                                CandidateJob.candidate_id == sc.candidate_id,
+                                CandidateJob.job_id == sc.job_id,
+                            )
+                        )
+                        cj = cj_result.scalar_one_or_none()
+                        if cj:
+                            cj.status = CandidateJobStatus.INTERVIEW_SCHEDULED
+
+                    await _add_event(db, candidate.id, ScreeningEventType.INTERVIEW_SCHEDULED.value, sc.id, {
+                        "interviewAvailability": sc.interview_availability,
+                        "interviewLink": interview.interview_link,
+                        "scheduledAt": resolved_dt.isoformat() if resolved_dt else None,
+                    })
+
+                    # Auto-send interview invitation email to candidate
+                    if candidate.email:
+                        org_result = await db.execute(
+                            select(Organization).where(Organization.id == sc.org_id)
+                        ) if sc.org_id else None
+                        org = org_result.scalar_one_or_none() if org_result else None
+                        job_result = await db.execute(
+                            select(JobDescription).where(JobDescription.id == sc.job_id)
+                        ) if sc.job_id else None
+                        job = job_result.scalar_one_or_none() if job_result else None
+                        send_interview_invitation(
+                            to_email=candidate.email,
+                            candidate_name=candidate.name,
+                            org_name=org.name if org else "VoxHire",
+                            job_title=job.title if job else None,
+                            interview_url=interview.interview_link,
+                            interview_availability=sc.interview_availability,
+                        )
+                except Exception as exc:
+                    import logging
+                    logging.getLogger(__name__).error("Failed to auto-schedule interview: %s", exc)
+
+    elif resolved_outcome == "CALLBACK_REQUESTED":
+        candidate.screening_status = ScreeningStatus.CALLBACK_REQUESTED.value
+        await _add_event(db, candidate.id, ScreeningEventType.CALLBACK_REQUESTED.value, sc.id, {
+            "callbackDate": sc.callback_date,
+            "callbackTime": sc.callback_time,
+            "additionalNotes": sc.additional_notes,
+        })
+
+    elif resolved_outcome == "DECLINED":
+        candidate.screening_status = ScreeningStatus.DECLINED.value
+        sc.decline_timestamp = _utcnow()
+        sc.candidate_intent = "Not Interested"
+        await _add_event(db, candidate.id, ScreeningEventType.DECLINED.value, sc.id, {
+            "additionalNotes": sc.additional_notes,
+            "candidateQuestion": sc.candidate_question,
+        })
+
+    elif resolved_outcome == "CALL_DROPPED":
+        candidate.screening_status = ScreeningStatus.CALL_DROPPED.value
+        if not screening_completed and any([sc.work_mode, sc.current_ctc, sc.current_role, sc.total_experience]):
+            candidate.screening_status = ScreeningStatus.PARTIALLY_COMPLETED.value
+        await _add_event(db, candidate.id, ScreeningEventType.CALL_DROPPED.value, sc.id, {
+            "endedReason": ended_reason,
+            "partialData": screening_completed,
+        })
+
+    elif resolved_outcome == "NO_ANSWER":
+        candidate.screening_status = ScreeningStatus.NO_ANSWER.value
+        await _add_event(db, candidate.id, ScreeningEventType.NO_ANSWER.value, sc.id, {
+            "attemptNumber": sc.attempt_number,
+            "endedReason": ended_reason,
+        })
+
+
 # ─── Webhook ───────────────────────────────────────────────────
 
 @router.post("/webhook", status_code=200)
@@ -129,9 +372,20 @@ async def vapi_webhook(
     vapi_call_id = (message.get("call") or {}).get("id") or message.get("callId", "")
     ended_reason = message.get("endedReason", "")
 
-    # Extract structured data (Vapi puts it under analysis.structuredData)
+    # Extract structured data — Vapi puts it in one of two locations depending on assistant config:
+    # 1. analysis.structuredData (Analysis feature)
+    # 2. artifact.structuredOutputs[stepId].result (Structured Outputs step feature)
     analysis = message.get("analysis", {}) or {}
     structured = analysis.get("structuredData", {}) or {}
+
+    # If analysis.structuredData is empty, fall back to artifact.structuredOutputs
+    if not structured:
+        artifact = message.get("artifact", {}) or {}
+        step_outputs = artifact.get("structuredOutputs", {}) or {}
+        for val in step_outputs.values():
+            if isinstance(val, dict) and "result" in val:
+                structured = val["result"]
+                break
 
     # Vapi sometimes wraps structured data as {stepId: {name: "...", result: {...}}}
     # Unwrap if the top-level keys don't look like our field names
@@ -153,14 +407,19 @@ async def vapi_webhook(
         resolved_outcome = "DECLINED"
     elif ended_reason in ("customer-did-not-answer", "no-answer"):
         resolved_outcome = "NO_ANSWER"
-    elif ended_reason in ("customer-hangup", "call-hangup", "connection-error", "pipeline-error", "assistant-error"):
-        resolved_outcome = "CALL_DROPPED"
+    elif ended_reason in ("customer-hangup", "call-hangup", "customer-ended-call", "connection-error", "pipeline-error", "assistant-error"):
+        # customer-ended-call = candidate hung up normally after completing the call
+        resolved_outcome = "CALL_DROPPED" if not screening_completed else "COMPLETED"
     else:
         # Partial — call ended without structured output
         resolved_outcome = "CALL_DROPPED" if not screening_completed else "COMPLETED"
 
     # Find matching ScreeningCall — look up by vapi_call_id, or by metadata.screeningCallId
-    metadata = (message.get("call") or {}).get("metadata", {}) or {}
+    # Web SDK passes metadata inside assistantOverrides; server-side Vapi puts it in call.metadata
+    call_obj = message.get("call") or {}
+    metadata = call_obj.get("metadata", {}) or {}
+    if not metadata:
+        metadata = (call_obj.get("assistantOverrides") or {}).get("metadata", {}) or {}
     screening_call_id_meta = metadata.get("screeningCallId")
     candidate_id_meta = metadata.get("candidateId")
 
@@ -202,113 +461,16 @@ async def vapi_webhook(
     if candidate is None:
         return {"received": True, "warning": "Candidate not found"}
 
-    # Populate structured output fields
+    # Store the Vapi call ID
     sc.vapi_call_id = vapi_call_id or sc.vapi_call_id
-    sc.call_outcome = resolved_outcome
-    sc.screening_completed = screening_completed
-    sc.ended_at = _utcnow()
-    sc.work_mode = structured.get("workMode", "")
-    sc.current_ctc = structured.get("currentCTC", "")
-    sc.current_role = structured.get("currentRole", "")
-    sc.expected_ctc = structured.get("expectedCTC", "")
-    sc.callback_date = structured.get("callbackDate", "")
-    sc.callback_time = structured.get("callbackTime", "")
-    sc.notice_period = structured.get("noticePeriod", "")
-    sc.additional_notes = structured.get("additionalNotes", "")
-    sc.candidate_intent = structured.get("candidateIntent", "")
-    sc.total_experience = structured.get("totalExperience", "")
-    sc.interview_availability = structured.get("interviewAvailability", "")
-    sc.candidate_question = structured.get("candidateQuestion", "")
 
-    # ── SCENARIO 1: COMPLETED ──────────────────────────────────
-    if resolved_outcome == "COMPLETED":
-        candidate.screening_status = ScreeningStatus.COMPLETED.value
-        await _add_event(db, candidate.id, ScreeningEventType.SCREENING_COMPLETED.value, sc.id, {
-            "callOutcome": resolved_outcome,
-            "callSummary": structured.get("callSummary", ""),
-            "interviewAvailability": sc.interview_availability,
-            "candidateIntent": sc.candidate_intent,
-        })
-
-        # Auto-schedule interview if candidate is available
-        candidate_available = bool(structured.get("candidateAvailableForInterview", False))
-        if candidate_available:
-            try:
-                link_token = str(uuid.uuid4()).replace("-", "")
-                base_url = settings.FRONTEND_URL.rstrip("/")
-                interview = InterviewSession(
-                    id=str(uuid.uuid4()),
-                    candidate_id=sc.candidate_id,
-                    org_id=sc.org_id,
-                    created_by=sc.initiated_by,
-                    job_id=sc.job_id,
-                    link_token=link_token,
-                    interview_link=f"{base_url}/interview/{link_token}",
-                    status=InterviewStatus.SCHEDULED,
-                )
-                db.add(interview)
-                await db.flush()
-
-                # Update candidate-job status to interview_scheduled
-                if sc.job_id:
-                    cj_result = await db.execute(
-                        select(CandidateJob).where(
-                            CandidateJob.candidate_id == sc.candidate_id,
-                            CandidateJob.job_id == sc.job_id,
-                        )
-                    )
-                    cj = cj_result.scalar_one_or_none()
-                    if cj:
-                        cj.status = CandidateJobStatus.INTERVIEW_SCHEDULED
-
-                await _add_event(db, candidate.id, ScreeningEventType.INTERVIEW_SCHEDULED.value, sc.id, {
-                    "interviewAvailability": sc.interview_availability,
-                    "interviewLink": interview.interview_link,
-                })
-            except Exception as exc:
-                # Log but don't fail — screening data must still be saved
-                import logging
-                logging.getLogger(__name__).error("Failed to auto-schedule interview: %s", exc)
-
-    # ── SCENARIO 2: CALLBACK_REQUESTED ────────────────────────
-    elif resolved_outcome == "CALLBACK_REQUESTED":
-        candidate.screening_status = ScreeningStatus.CALLBACK_REQUESTED.value
-        await _add_event(db, candidate.id, ScreeningEventType.CALLBACK_REQUESTED.value, sc.id, {
-            "callbackDate": sc.callback_date,
-            "callbackTime": sc.callback_time,
-            "additionalNotes": sc.additional_notes,
-        })
-
-    # ── SCENARIO 3: DECLINED ───────────────────────────────────
-    elif resolved_outcome == "DECLINED":
-        candidate.screening_status = ScreeningStatus.DECLINED.value
-        sc.decline_timestamp = _utcnow()
-        sc.candidate_intent = "Not Interested"
-        await _add_event(db, candidate.id, ScreeningEventType.DECLINED.value, sc.id, {
-            "additionalNotes": sc.additional_notes,
-            "candidateQuestion": sc.candidate_question,
-        })
-
-    # ── SCENARIO 4: CALL_DROPPED ───────────────────────────────
-    elif resolved_outcome == "CALL_DROPPED":
-        candidate.screening_status = ScreeningStatus.CALL_DROPPED.value
-        if screening_completed is False and any([
-            sc.work_mode, sc.current_ctc, sc.current_role, sc.total_experience
-        ]):
-            candidate.screening_status = ScreeningStatus.PARTIALLY_COMPLETED.value
-        await _add_event(db, candidate.id, ScreeningEventType.CALL_DROPPED.value, sc.id, {
-            "endedReason": ended_reason,
-            "partialData": screening_completed,
-        })
-
-    # ── SCENARIO 5: NO_ANSWER ──────────────────────────────────
-    elif resolved_outcome == "NO_ANSWER":
-        candidate.screening_status = ScreeningStatus.NO_ANSWER.value
-        await _add_event(db, candidate.id, ScreeningEventType.NO_ANSWER.value, sc.id, {
-            "attemptNumber": sc.attempt_number,
-            "endedReason": ended_reason,
-        })
-
+    await _process_screening_result(
+        db=db, sc=sc, candidate=candidate,
+        resolved_outcome=resolved_outcome,
+        screening_completed=screening_completed,
+        structured=structured,
+        ended_reason=ended_reason,
+    )
     await db.commit()
     return {"received": True, "outcome": resolved_outcome}
 
@@ -319,12 +481,12 @@ async def vapi_webhook(
 async def get_screening_history(
     candidate_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id,
-            Candidate.org_id == current_user.org_id,
+            Candidate.org_id == current_user["org_id"],
         )
     )
     candidate = result.scalar_one_or_none()
@@ -391,12 +553,12 @@ async def get_screening_history(
 async def initiate_screening(
     candidate_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id,
-            Candidate.org_id == current_user.org_id,
+            Candidate.org_id == current_user["org_id"],
         )
     )
     candidate = result.scalar_one_or_none()
@@ -414,8 +576,8 @@ async def initiate_screening(
     # Create ScreeningCall record
     sc = ScreeningCall(
         candidate_id=candidate_id,
-        org_id=current_user.org_id,
-        initiated_by=current_user.id,
+        org_id=current_user["org_id"],
+        initiated_by=current_user["id"],
         attempt_number=candidate.screening_attempt_count,
         initiated_at=_utcnow(),
     )
@@ -452,7 +614,7 @@ async def initiate_screening(
     await _add_event(db, candidate_id, ScreeningEventType.SCREENING_INITIATED.value, sc.id, {
         "attemptNumber": sc.attempt_number,
         "vapiCallId": vapi_call_id,
-        "initiatedBy": current_user.name,
+        "initiatedBy": current_user["name"],
     })
 
     await db.commit()
@@ -472,12 +634,12 @@ async def initiate_screening(
 async def retry_screening(
     candidate_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id,
-            Candidate.org_id == current_user.org_id,
+            Candidate.org_id == current_user["org_id"],
         )
     )
     candidate = result.scalar_one_or_none()
@@ -529,7 +691,7 @@ async def send_invitation(
     candidate_id: str,
     body: SendInvitationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Recruiter sends a web-based screening link to the candidate.
@@ -538,7 +700,7 @@ async def send_invitation(
     result = await db.execute(
         select(Candidate).where(
             Candidate.id == candidate_id,
-            Candidate.org_id == current_user.org_id,
+            Candidate.org_id == current_user["org_id"],
         )
     )
     candidate = result.scalar_one_or_none()
@@ -559,7 +721,7 @@ async def send_invitation(
             job_title = job.title
 
     # Fetch org name
-    org_result = await db.execute(select(Organization).where(Organization.id == current_user.org_id))
+    org_result = await db.execute(select(Organization).where(Organization.id == current_user["org_id"]))
     org = org_result.scalar_one_or_none()
     org_name = org.name if org else "VoxHire"
 
@@ -570,8 +732,8 @@ async def send_invitation(
 
     sc = ScreeningCall(
         candidate_id=candidate_id,
-        org_id=current_user.org_id,
-        initiated_by=current_user.id,
+        org_id=current_user["org_id"],
+        initiated_by=current_user["id"],
         job_id=body.job_id,
         attempt_number=candidate.screening_attempt_count,
         initiated_at=_utcnow(),
@@ -588,8 +750,8 @@ async def send_invitation(
     inv = ScreeningInvitation(
         token=token,
         candidate_id=candidate_id,
-        org_id=current_user.org_id,
-        sent_by=current_user.id,
+        org_id=current_user["org_id"],
+        sent_by=current_user["id"],
         job_id=body.job_id,
         screening_call_id=sc.id,
         candidate_email=candidate.email,
@@ -612,7 +774,7 @@ async def send_invitation(
         "invitationToken": token,
         "jobTitle": job_title,
         "emailSent": email_sent,
-        "sentBy": current_user.name,
+        "sentBy": current_user["name"],
     })
 
     await db.commit()
@@ -757,3 +919,135 @@ async def start_invite_screening(
         "vapi_assistant_id": settings.VAPI_ASSISTANT_ID,
         "metadata": metadata,
     }
+
+
+# ─── POST public: store vapi_call_id when call starts ─────────
+
+@router.post("/invite/{token}/call-started", status_code=200)
+async def invite_call_started(
+    token: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Public endpoint — called by the screening page immediately after vapi.start()
+    returns. Stores the Vapi call ID on the ScreeningCall so the server-side
+    webhook can find it by vapi_call_id later.
+    """
+    body = await request.json()
+    vapi_call_id = body.get("vapi_call_id", "")
+    if not vapi_call_id:
+        return {"ok": False, "reason": "missing vapi_call_id"}
+
+    result = await db.execute(
+        select(ScreeningInvitation).where(ScreeningInvitation.token == token)
+    )
+    inv = result.scalar_one_or_none()
+    if inv is None:
+        return {"ok": False, "reason": "invalid token"}
+
+    if inv.screening_call_id:
+        sc_result = await db.execute(
+            select(ScreeningCall).where(ScreeningCall.id == inv.screening_call_id)
+        )
+        sc = sc_result.scalar_one_or_none()
+        if sc and not sc.vapi_call_id:
+            sc.vapi_call_id = vapi_call_id
+            await db.commit()
+
+    return {"ok": True}
+
+
+# ─── POST public: frontend-forwarded end-of-call-report ──────
+
+class _InviteCompleteRequest(BaseModel):
+    message: dict
+
+
+@router.post("/invite/{token}/complete", status_code=200)
+async def invite_call_complete(
+    token: str,
+    body: _InviteCompleteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Public endpoint — called by the screening page when the Vapi SDK fires
+    end-of-call-report. Uses the invitation token as auth (no Vapi secret needed).
+    Processes structured output and auto-schedules interview if eligible.
+    """
+    result = await db.execute(
+        select(ScreeningInvitation).where(ScreeningInvitation.token == token)
+    )
+    inv = result.scalar_one_or_none()
+    if inv is None:
+        raise HTTPException(status_code=404, detail="Invalid screening link")
+
+    message = body.message
+    message_type = message.get("type", "")
+    if message_type != "end-of-call-report":
+        return {"received": True}
+
+    # Find the ScreeningCall for this invitation
+    sc: Optional[ScreeningCall] = None
+    if inv.screening_call_id:
+        sc_result = await db.execute(
+            select(ScreeningCall).where(ScreeningCall.id == inv.screening_call_id)
+        )
+        sc = sc_result.scalar_one_or_none()
+
+    if sc is None:
+        return {"received": True, "warning": "No screening call found for this invitation"}
+
+    # Avoid double-processing
+    if sc.screening_completed:
+        return {"received": True, "already_processed": True}
+
+    # Build a synthetic payload and delegate to the shared processor
+    vapi_call_id = (message.get("call") or {}).get("id") or ""
+    if vapi_call_id and not sc.vapi_call_id:
+        sc.vapi_call_id = vapi_call_id
+
+    ended_reason = message.get("endedReason", "")
+    analysis = message.get("analysis", {}) or {}
+    structured = analysis.get("structuredData", {}) or {}
+    if not structured:
+        artifact = message.get("artifact", {}) or {}
+        for val in (artifact.get("structuredOutputs", {}) or {}).values():
+            if isinstance(val, dict) and "result" in val:
+                structured = val["result"]
+                break
+    if structured and not structured.get("callOutcome") and not structured.get("screeningCompleted"):
+        for val in structured.values():
+            if isinstance(val, dict) and "result" in val:
+                structured = val["result"]
+                break
+
+    call_outcome = structured.get("callOutcome", "")
+    screening_completed = bool(structured.get("screeningCompleted", False))
+
+    if call_outcome == "COMPLETED":
+        resolved_outcome = "COMPLETED"
+    elif call_outcome == "CALLBACK_REQUESTED":
+        resolved_outcome = "CALLBACK_REQUESTED"
+    elif call_outcome == "DECLINED":
+        resolved_outcome = "DECLINED"
+    elif ended_reason in ("customer-did-not-answer", "no-answer"):
+        resolved_outcome = "NO_ANSWER"
+    else:
+        resolved_outcome = "CALL_DROPPED" if not screening_completed else "COMPLETED"
+
+    candidate_result = await db.execute(select(Candidate).where(Candidate.id == sc.candidate_id))
+    candidate = candidate_result.scalar_one_or_none()
+    if candidate is None:
+        return {"received": True, "warning": "Candidate not found"}
+
+    await _process_screening_result(
+        db=db, sc=sc, candidate=candidate,
+        resolved_outcome=resolved_outcome,
+        screening_completed=screening_completed,
+        structured=structured,
+        ended_reason=ended_reason,
+    )
+    inv.is_used = True
+    await db.commit()
+    return {"received": True, "outcome": resolved_outcome}

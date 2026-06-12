@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAntiCheat, ViolationType } from "@/hooks/useAntiCheat";
-import { useVoiceRuntime } from "@/hooks/useVoiceRuntime";
+import { useStreamingInterview } from "@/hooks/useStreamingInterview";
 import { interviewsApi } from "@/lib/api-client";
 
 const VIOLATION_MESSAGES: Record<ViolationType, string> = {
@@ -26,6 +26,7 @@ interface SessionInfo {
   skillsToAssess: string[];
   interviewType: string;
   difficulty: string;
+  aiPersonality: string;
 }
 
 const DEFAULT_SESSION: SessionInfo = {
@@ -38,6 +39,7 @@ const DEFAULT_SESSION: SessionInfo = {
   skillsToAssess: [],
   interviewType: "Technical",
   difficulty: "Medium",
+  aiPersonality: "Neutral",
 };
 
 function toStringArray(arr: unknown): string[] {
@@ -75,6 +77,7 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
           skillsToAssess:  toStringArray(data?.skills_to_assess),
           interviewType:   data?.interview_type ?? "Technical",
           difficulty:      data?.difficulty ?? "Medium",
+          aiPersonality:   data?.ai_personality ?? "Neutral",
         });
       })
       .catch(() => {})
@@ -92,13 +95,16 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
   const {
     isMediaReady, mediaError, attachVideo,
     initMedia, beginInterview,
-    transcript, isListening, isAIThinking, isAISpeaking,
-  } = useVoiceRuntime({
+    transcript, isListening, isCandidateThinking, isAIThinking, isAISpeaking,
+  } = useStreamingInterview({
     sessionId:      session.sessionId,
     linkToken,
     candidateName:  session.candidateName,
     appliedRole:    session.appliedRole,
     skillsToAssess: session.skillsToAssess,
+    difficulty:     session.difficulty,
+    aiPersonality:  session.aiPersonality,
+    interviewType:  session.interviewType,
     onComplete:     handleComplete,
   });
 
@@ -614,31 +620,33 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
             <div className="relative rounded-xl overflow-hidden bg-[#13131a] border border-[#1e1e2e] aspect-video mb-4">
               <video ref={attachVideo} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
 
-              {(isAIThinking || isAISpeaking) && (
+              {isAIThinking && (
                 <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-[#6c63ff]/80 backdrop-blur rounded-full px-2.5 py-1">
-                  {isAIThinking ? (
-                    <>
-                      <div className="flex gap-0.5 items-end h-3">
-                        {[0, 1, 2].map((i) => (
-                          <div key={i} className="w-0.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />
-                        ))}
-                      </div>
-                      <span className="text-white text-xs font-medium">AI thinking</span>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex gap-0.5 items-end h-3">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="w-0.5 bg-white rounded-full animate-pulse" style={{ height: `${8 + i * 3}px`, animationDelay: `${i * 0.15}s` }} />
-                        ))}
-                      </div>
-                      <span className="text-white text-xs font-medium">AI speaking</span>
-                    </>
-                  )}
+                  <div className="flex gap-0.5 items-end h-3">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="w-0.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />
+                    ))}
+                  </div>
+                  <span className="text-white text-xs font-medium">AI thinking</span>
                 </div>
               )}
-
-              {isListening && !isAIThinking && !isAISpeaking && (
+              {isAISpeaking && !isAIThinking && (
+                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-[#6c63ff]/80 backdrop-blur rounded-full px-2.5 py-1">
+                  <div className="flex gap-0.5 items-end h-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="w-0.5 bg-white rounded-full animate-pulse" style={{ height: `${8 + i * 3}px`, animationDelay: `${i * 0.15}s` }} />
+                    ))}
+                  </div>
+                  <span className="text-white text-xs font-medium">AI speaking</span>
+                </div>
+              )}
+              {isCandidateThinking && !isAIThinking && !isAISpeaking && (
+                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-amber-500/70 backdrop-blur rounded-full px-2.5 py-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  <span className="text-white text-xs font-medium">Taking a moment…</span>
+                </div>
+              )}
+              {isListening && !isCandidateThinking && !isAIThinking && !isAISpeaking && (
                 <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-green-500/70 backdrop-blur rounded-full px-2.5 py-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                   <span className="text-white text-xs font-medium">Listening</span>
@@ -757,7 +765,18 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
                   <span className="text-[#6c63ff] text-xs font-medium">AI speaking...</span>
                 </>
               )}
-              {isListening && !isAIThinking && !isAISpeaking && (
+              {isCandidateThinking && !isAIThinking && !isAISpeaking && (
+                <>
+                  <div className="flex gap-0.5 items-end h-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="w-0.5 bg-amber-400 rounded-full animate-pulse"
+                        style={{ height: `${4 + i * 2}px`, animationDelay: `${i * 0.2}s` }} />
+                    ))}
+                  </div>
+                  <span className="text-amber-400 text-xs font-medium">Take your time...</span>
+                </>
+              )}
+              {isListening && !isCandidateThinking && !isAIThinking && !isAISpeaking && (
                 <>
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                   <span className="text-green-400 text-xs font-medium">Listening — speak now</span>

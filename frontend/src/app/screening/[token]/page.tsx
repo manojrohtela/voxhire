@@ -60,6 +60,7 @@ export default function ScreeningPage({ params }: { params: { token: string } })
   const [webhookStatus, setWebhookStatus] = useState<"pending" | "sent" | "failed" | null>(null);
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const vapiRef = useRef<Vapi | null>(null);
+  const micTrackRef = useRef<MediaStreamTrack | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const silenceCountRef = useRef(0);
@@ -126,7 +127,24 @@ export default function ScreeningPage({ params }: { params: { token: string } })
 
       addDebug(`Starting Vapi: assistant=${config.vapi_assistant_id.slice(0,8)}… key=${config.vapi_public_key.slice(0,8)}…`);
 
-      const vapi = new Vapi(config.vapi_public_key);
+      // Pre-acquire mic with explicit audio processing constraints so Vapi/Daily
+      // uses these settings instead of getUserMedia({ audio: true }) defaults.
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      const audioTrack = micStream.getAudioTracks()[0];
+      micTrackRef.current = audioTrack;
+
+      const vapi = new Vapi(
+        config.vapi_public_key,
+        undefined,
+        undefined,
+        { audioSource: audioTrack },
+      );
       vapiRef.current = vapi;
 
       // Wire Vapi events
@@ -139,6 +157,8 @@ export default function ScreeningPage({ params }: { params: { token: string } })
       vapi.on("call-end", () => {
         addDebug("call-end fired");
         clearSilenceTimer();
+        micTrackRef.current?.stop();
+        micTrackRef.current = null;
         setPhase("completed");
       });
 
@@ -155,12 +175,12 @@ export default function ScreeningPage({ params }: { params: { token: string } })
 
       vapi.on("message", (msg: any) => {
         addDebug(`message: type=${msg.type}`);
-        // Forward end-of-call-report to backend — works locally without needing ngrok.
-        // In production the server-side Vapi webhook also fires; vapi_call_id deduplicates.
+        // Forward end-of-call-report using the invite token (no Vapi secret needed).
+        // The server-side Vapi webhook may also fire; sc.screening_completed deduplicates.
         if (msg.type === "end-of-call-report") {
           addDebug(`end-of-call-report received — forwarding to backend…`);
           setWebhookStatus("pending");
-          fetch(`${API_URL}/api/v1/screening/webhook`, {
+          fetch(`${API_URL}/api/v1/screening/invite/${token}/complete`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: msg }),
@@ -200,20 +220,39 @@ export default function ScreeningPage({ params }: { params: { token: string } })
 
       vapi.on("error", (err: any) => {
         addDebug(`error event: ${JSON.stringify(err)}`);
+        micTrackRef.current?.stop();
+        micTrackRef.current = null;
         setStartError("Connection error. Please check your microphone and try again.");
         setStarting(false);
         setPhase("intro");
       });
 
       addDebug("Calling vapi.start()…");
-      // Start the Vapi call
-      await vapi.start(config.vapi_assistant_id, {
+      // Start the Vapi call — returns a Call object with the Vapi call ID
+      const vapiCall = await vapi.start(config.vapi_assistant_id, {
         metadata: config.metadata,
         silenceTimeoutSeconds: 90,
+        transcriber: {
+          provider: "deepgram",
+          model: "nova-3-general",
+          language: "en",
+        },
       } as any);
-      addDebug("vapi.start() resolved");
+      addDebug(`vapi.start() resolved id=${(vapiCall as any)?.id ?? "?"}`);
+
+      // Register the Vapi call ID so the server-side webhook can find this ScreeningCall
+      const vapiCallId = (vapiCall as any)?.id;
+      if (vapiCallId) {
+        fetch(`${API_URL}/api/v1/screening/invite/${token}/call-started`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vapi_call_id: vapiCallId }),
+        }).catch(() => {});
+      }
 
     } catch (e: any) {
+      micTrackRef.current?.stop();
+      micTrackRef.current = null;
       setStartError(e.message === "failed" ? "This link has already been used or has expired." : "Failed to start screening. Please try again.");
       setStarting(false);
     }

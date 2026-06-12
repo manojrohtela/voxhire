@@ -9,6 +9,7 @@ export type CandidateIntent =
   | "confident"
   | "uncertain"
   | "verbose"
+  | "rambling"
   | "brief"
   | "deflecting"
   | "unknown";
@@ -31,8 +32,14 @@ export interface StageContext {
   engagementLevel?: EngagementLevel;
   momentum?: InterviewMomentum;
   consecutiveSameTone?: number;
+  deflectStreak?: number;
+  questionsAskedOnCurrentSkill?: number;
   candidateName?: string;
   appliedRole?: string;
   currentSkill?: string | null;
-  skillsToAssess?: string[];
+  skillsToAssess?: string[];    // full original list
+  remainingSkills?: string[];   // skills not yet covered
+  difficulty?: string;          // "Easy" | "Medium" | "Hard"
+  aiPersonality?: string;       // "Friendly" | "Neutral" | "Strict"
+  interviewType?: string;       // "Technical" | "HR" | "Leadership" | "Sales"
 }

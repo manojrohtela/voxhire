@@ -9,17 +9,21 @@ type RequestBody = {
   appliedRole?: string;
   skillsToAssess?: string[];
   stageContext?: StageContext;
+  recentAssistantOpenings?: string[];
 };
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as RequestBody;
-  const messages = Array.isArray(body.messages) ? body.messages : [];
-  const candidateName = body.candidateName ?? "";
-  const appliedRole = body.appliedRole ?? "";
-  const skillsToAssess = Array.isArray(body.skillsToAssess) ? body.skillsToAssess : [];
-  const stageContext = body.stageContext;
+  const messages              = Array.isArray(body.messages) ? body.messages : [];
+  const candidateName         = body.candidateName ?? "";
+  const appliedRole           = body.appliedRole ?? "";
+  const skillsToAssess        = Array.isArray(body.skillsToAssess) ? body.skillsToAssess : [];
+  const stageContext          = body.stageContext;
+  const recentAssistantOpenings = Array.isArray(body.recentAssistantOpenings)
+    ? body.recentAssistantOpenings
+    : [];
 
   if (!messages.length) {
     return new Response(
@@ -34,7 +38,8 @@ export async function POST(request: Request) {
       candidateName,
       appliedRole,
       skillsToAssess,
-      stageContext
+      stageContext,
+      recentAssistantOpenings,
     );
     return new Response(stream, {
       headers: {

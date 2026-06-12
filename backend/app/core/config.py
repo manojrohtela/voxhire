@@ -5,6 +5,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "changeme-use-a-long-random-string-in-production"
     GROQ_API_KEY: str = ""
     CARTESIA_API_KEY: str = ""
+
+    # Real-time voice pipeline
+    DEEPGRAM_API_KEY: str = ""
+    CARTESIA_VOICE_ID: str = "3e39e9a5-585c-4f5f-bac6-5e4905c51095"
+    GROQ_LLM_MODEL: str = "llama-3.3-70b-versatile"
     DATABASE_URL: str = ""
     FRONTEND_URL: str = "http://localhost:3000"
 

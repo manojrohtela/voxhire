@@ -6,11 +6,16 @@ type GroqMessage = { role: "user" | "assistant"; content: string };
 function getDynamicTemperature(ctx?: StageContext): number {
   if (!ctx) return 0.68;
   const { emotionalTone, momentum, intent, engagementLevel } = ctx;
-  if (emotionalTone === "nervous") return 0.58;
-  if (intent === "deflecting") return 0.62;
-  if (emotionalTone === "confident" || emotionalTone === "engaged" || engagementLevel === "high") return 0.78;
-  if (momentum === "stalling" || intent === "brief") return 0.80;
-  return 0.68;
+
+  if (emotionalTone === "nervous")  return 0.55;  // predictable/reassuring
+  if (intent === "rambling")        return 0.58;  // tight, focused cut-in
+  if (intent === "deflecting")      return 0.62;  // direct pivot
+  if (intent === "brief")           return 0.65;  // concrete probe
+  if (emotionalTone === "confident" || emotionalTone === "engaged" || engagementLevel === "high") return 0.80; // creative depth
+  if (momentum === "stalling")      return 0.75;  // energising re-engagement
+  if (emotionalTone === "hesitant") return 0.65;  // grounding anchor
+
+  return 0.68; // balanced default
 }
 
 export async function generateInterviewReplyStream(
@@ -18,7 +23,8 @@ export async function generateInterviewReplyStream(
   candidateName: string,
   appliedRole: string,
   skillsToAssess: string[],
-  stageContext?: StageContext
+  stageContext?: StageContext,
+  recentAssistantOpenings?: string[],
 ): Promise<ReadableStream<Uint8Array>> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY is missing.");
@@ -27,7 +33,8 @@ export async function generateInterviewReplyStream(
     candidateName,
     appliedRole,
     skillsToAssess,
-    stageContext
+    stageContext,
+    recentAssistantOpenings,
   );
 
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -39,11 +46,11 @@ export async function generateInterviewReplyStream(
     body: JSON.stringify({
       model: "llama-3.3-70b-versatile",
       temperature: getDynamicTemperature(stageContext),
-      max_tokens: 80,
+      max_tokens: 120,   // 80 could truncate; 120 handles natural sentence completion
       stream: true,
       messages: [
         { role: "system", content: systemPrompt },
-        ...messages.slice(-12),
+        ...messages.slice(-16), // 16 messages ≈ 8 full turns of context
       ],
     }),
   });

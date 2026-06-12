@@ -106,3 +106,90 @@ def send_screening_invitation(
     except Exception as exc:
         logger.error("Failed to send screening invitation to %s: %s", to_email, exc, exc_info=True)
         return False
+
+
+def send_interview_invitation(
+    to_email: str,
+    candidate_name: str,
+    org_name: str,
+    job_title: Optional[str],
+    interview_url: str,
+    interview_availability: Optional[str] = None,
+) -> bool:
+    """Send auto-scheduled interview link to candidate. Returns True if sent."""
+    if not _smtp_configured():
+        return False
+
+    subject = f"{org_name} — Your interview has been scheduled"
+    job_line = f"for the <strong>{job_title}</strong> role " if job_title else ""
+    avail_block = (
+        f'<p style="color:#ccc;font-size:15px;line-height:1.6;">Your preferred availability: <strong>{interview_availability}</strong></p>'
+        if interview_availability else ""
+    )
+
+    html = f"""
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;background:#0f0e14;color:#e2e0f0;margin:0;padding:40px 20px;">
+  <div style="max-width:520px;margin:0 auto;background:#1a1825;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="display:inline-block;width:48px;height:48px;background:#10b981;border-radius:12px;line-height:48px;text-align:center;font-size:22px;">🗓️</div>
+      <h1 style="color:#fff;font-size:22px;margin:16px 0 4px;">Interview Scheduled</h1>
+      <p style="color:#888;font-size:14px;margin:0;">{org_name}</p>
+    </div>
+
+    <p style="color:#ccc;font-size:15px;line-height:1.6;">Hi <strong>{candidate_name}</strong>,</p>
+    <p style="color:#ccc;font-size:15px;line-height:1.6;">
+      Your screening was successful and an AI-powered interview {job_line}has been scheduled with <strong>{org_name}</strong>.
+    </p>
+    {avail_block}
+
+    <div style="text-align:center;margin:32px 0;">
+      <a href="{interview_url}"
+         style="display:inline-block;background:#10b981;color:#fff;text-decoration:none;
+                padding:14px 32px;border-radius:10px;font-weight:600;font-size:15px;">
+        Join My Interview →
+      </a>
+    </div>
+
+    <p style="color:#666;font-size:13px;text-align:center;">
+      If you have any issues, contact your recruiter directly.
+    </p>
+
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:24px 0;">
+    <p style="color:#555;font-size:12px;text-align:center;margin:0;">
+      Powered by <a href="https://voxhire.ai" style="color:#6c63ff;text-decoration:none;">VoxHire</a>
+    </p>
+  </div>
+</body>
+</html>
+"""
+
+    plain = (
+        f"Hi {candidate_name},\n\n"
+        f"Your screening was successful! Your interview {f'for the {job_title} role ' if job_title else ''}"
+        f"with {org_name} has been scheduled.\n\n"
+        + (f"Your preferred availability: {interview_availability}\n\n" if interview_availability else "")
+        + f"Join your interview here:\n{interview_url}\n\n"
+        f"— VoxHire"
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.FROM_EMAIL
+    msg["To"] = to_email
+    msg.attach(MIMEText(plain, "plain"))
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
+        logger.info("Interview invitation sent successfully to %s", to_email)
+        return True
+    except Exception as exc:
+        logger.error("Failed to send interview invitation to %s: %s", to_email, exc, exc_info=True)
+        return False
