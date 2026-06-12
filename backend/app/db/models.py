@@ -267,6 +267,7 @@ class InterviewSession(Base):
     difficulty: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)        # Easy/Medium/Hard
     question_strategy: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     ai_personality: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)   # Friendly/Strict/Neutral
+    focus_skills: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)          # HR-defined skills for Vapi to probe
 
     # Status
     status: Mapped[InterviewStatus] = mapped_column(SAEnum(InterviewStatus, native_enum=False), default=InterviewStatus.SCHEDULED)

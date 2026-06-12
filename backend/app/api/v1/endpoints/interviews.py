@@ -43,6 +43,7 @@ class CreateInterviewRequest(BaseModel):
     difficulty: Optional[str] = None          # Easy / Medium / Hard
     question_strategy: Optional[str] = None
     ai_personality: Optional[str] = None      # Friendly / Strict / Neutral
+    focus_skills: Optional[list[str]] = None  # HR-defined skills for Vapi to probe
 
 class UpdateStatusRequest(BaseModel):
     status: InterviewStatus
@@ -100,6 +101,7 @@ def session_to_dict(s: InterviewSession, include_candidate: bool = False) -> dic
         "difficulty": s.difficulty,
         "question_strategy": s.question_strategy,
         "ai_personality": s.ai_personality,
+        "focus_skills": s.focus_skills or [],
         "created_at": s.created_at.isoformat() if s.created_at else None,
         # Vapi + evaluation fields
         "vapi_call_id": s.vapi_call_id,
@@ -177,6 +179,7 @@ async def create_interview(
         difficulty=body.difficulty,
         question_strategy=body.question_strategy,
         ai_personality=body.ai_personality,
+        focus_skills=body.focus_skills or [],
     )
     db.add(session)
     await db.flush()

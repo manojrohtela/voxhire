@@ -48,6 +48,8 @@ function ScheduleContent() {
   const [interviewType, setInterviewType] = useState("Technical");
   const [difficulty, setDifficulty] = useState("Medium");
   const [aiPersonality, setAiPersonality] = useState("Neutral");
+  const [focusSkills, setFocusSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState("");
   const [step, setStep] = useState<"pick" | "confirm" | "done">("pick");
   const [newInterview, setNewInterview] = useState<any>(null);
   const [copied, setCopied] = useState(false);
@@ -59,6 +61,18 @@ function ScheduleContent() {
 
   const pendingCandidates = candidates.filter((c) => !c.overall_rating);
   const selectedCandidate = candidates.find((c) => c.id === selectedCandidateId) || null;
+
+  // Auto-populate skills from candidate's resume when selection changes
+  useEffect(() => {
+    if (!selectedCandidate) return;
+    const profile = selectedCandidate.parsed_profile as any;
+    if (!profile?.skills) return;
+    const all: string[] = [];
+    for (const cat of ["technical", "languages", "frameworks", "tools"]) {
+      if (Array.isArray(profile.skills[cat])) all.push(...profile.skills[cat]);
+    }
+    if (all.length > 0) setFocusSkills(all.slice(0, 12));
+  }, [selectedCandidateId]);
 
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
   const firstDay = new Date(calYear, calMonth, 1).getDay();
@@ -84,6 +98,7 @@ function ScheduleContent() {
         difficulty,
         ai_personality: aiPersonality,
         language: "en",
+        focus_skills: focusSkills,
       });
       setNewInterview({ ...session, candidateName: selectedCandidate.name, role: selectedCandidate.applied_role });
       refetchInterviews();
@@ -149,6 +164,7 @@ function ScheduleContent() {
                 { label: "Duration", value: `${duration} minutes` },
                 { label: "Interview Type", value: `${interviewType} · ${difficulty}` },
                 { label: "AI Personality", value: aiPersonality },
+                { label: "Focus Skills", value: focusSkills.length > 0 ? focusSkills.join(", ") : "From resume" },
                 { label: "Email", value: selectedCandidate?.email || "" },
               ].map((item) => (
                 <div key={item.label} className="flex items-start justify-between py-3 border-b border-faint last:border-0">
@@ -339,6 +355,69 @@ function ScheduleContent() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 6: Skills & Focus Areas */}
+              {selectedSlot && (
+                <div className="bg-surface border border-base rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-400 text-xs font-bold">6</div>
+                    <h2 className="text-foreground-2 text-sm font-medium">Skills & Focus Areas</h2>
+                    <span className="text-foreground-4 text-xs ml-auto">What should the AI probe?</span>
+                  </div>
+                  <p className="text-foreground-4 text-xs mb-3 ml-7">
+                    {selectedCandidate ? "Pre-filled from resume — edit as needed." : "Add the skills Vapi should focus on during the interview."}
+                  </p>
+
+                  {/* Tag input */}
+                  <div className="flex flex-wrap gap-2 mb-3 min-h-[36px]">
+                    {focusSkills.map((skill) => (
+                      <span key={skill} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium">
+                        {skill}
+                        <button
+                          onClick={() => setFocusSkills(focusSkills.filter((s) => s !== skill))}
+                          className="text-violet-400 hover:text-red-400 transition-colors leading-none"
+                        >×</button>
+                      </span>
+                    ))}
+                    {focusSkills.length === 0 && (
+                      <span className="text-foreground-5 text-xs italic">No skills added yet</span>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.key === "Enter" || e.key === ",") && skillInput.trim()) {
+                          e.preventDefault();
+                          const skill = skillInput.trim().replace(/,$/, "");
+                          if (skill && !focusSkills.includes(skill)) {
+                            setFocusSkills([...focusSkills, skill]);
+                          }
+                          setSkillInput("");
+                        }
+                      }}
+                      placeholder="Type a skill and press Enter…"
+                      className="flex-1 bg-surface-hi border border-base rounded-lg px-3 py-2 text-sm text-foreground-2 placeholder-foreground-5 focus:outline-none focus:border-violet-500/50 transition-colors"
+                    />
+                    <button
+                      onClick={() => {
+                        const skill = skillInput.trim();
+                        if (skill && !focusSkills.includes(skill)) {
+                          setFocusSkills([...focusSkills, skill]);
+                        }
+                        setSkillInput("");
+                      }}
+                      disabled={!skillInput.trim()}
+                      className="px-4 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-300 rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-violet-500/20 transition-colors"
+                    >
+                      Add
+                    </button>
                   </div>
                 </div>
               )}

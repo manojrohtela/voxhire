@@ -94,6 +94,9 @@ async def get_vapi_config(
                 all_skills.extend(raw_skills.get(cat, []))
             candidate_summary["skills"] = all_skills[:20]
 
+    # HR-defined focus skills take priority; fall back to candidate resume skills
+    focus_skills = session.focus_skills if session.focus_skills else skills
+
     # Build Vapi assistant overrides — dynamic context injected into the assistant
     variable_values = {
         "jobTitle": session.interview_type or (candidate.applied_role if candidate else "Software Engineer"),
@@ -101,8 +104,8 @@ async def get_vapi_config(
         "orgName": org.name if org else "",
         "experienceLevel": _map_difficulty_to_level(session.difficulty or "Medium"),
         "difficulty": session.difficulty or "Medium",
-        "requiredSkills": skills,
-        "focusAreas": skills,
+        "requiredSkills": focus_skills,
+        "focusAreas": focus_skills,
         "durationMinutes": session.duration_minutes or 45,
         "interviewType": session.interview_type or "Technical",
         "candidateSummary": candidate_summary,
