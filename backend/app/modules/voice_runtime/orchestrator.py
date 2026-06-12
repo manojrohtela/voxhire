@@ -513,7 +513,11 @@ class VoiceSession:
     # ──────────────────────────────────────────────────────────────────────
 
     def _reset_listening(self, fresh_question: bool) -> None:
-        self.listening_since = time.monotonic()
+        now = time.monotonic()
+        self.listening_since = now
+        # Reset the silence clock so the first word doesn't look like it arrived
+        # after an infinite pause (last_speech_at=0.0 initial or stale from prior turn).
+        self.last_speech_at = now
         self.finalize_at = None
         if fresh_question:
             # New question asked → silence nudges re-arm
