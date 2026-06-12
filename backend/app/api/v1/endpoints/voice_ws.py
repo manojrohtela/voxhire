@@ -28,7 +28,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+_TEST_CONFIG = SessionConfig(
+    session_id="test-session",
+    link_token="test",
+    candidate_name="Test Candidate",
+    applied_role="Senior Software Engineer",
+    org_name="VoxHire Dev",
+    skills=["React", "Node.js", "System Design", "PostgreSQL"],
+    difficulty="Medium",
+    personality="Neutral",
+    interview_type="Technical",
+    duration_minutes=30,
+)
+
+
 async def _load_config(link_token: str) -> SessionConfig | None:
+    if link_token == "test":
+        return _TEST_CONFIG
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(InterviewSession).where(InterviewSession.link_token == link_token)
