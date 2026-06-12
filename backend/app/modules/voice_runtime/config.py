@@ -40,7 +40,7 @@ ENCOURAGE_AFTER_S = 8.0         # gentle nudge
 REPEAT_AFTER_S = 16.0           # offer to repeat the question
 
 # ── Turn limits ──────────────────────────────────────────────────────────────
-LLM_MAX_TOKENS = 200
+LLM_MAX_TOKENS = 400
 LLM_TEMPERATURE = 0.7
 WRAP_UP_BUFFER_MIN = 2          # force wrap_up this many minutes before scheduled end
 HARD_STOP_OVERRUN_MIN = 3       # absolute cutoff past scheduled duration
