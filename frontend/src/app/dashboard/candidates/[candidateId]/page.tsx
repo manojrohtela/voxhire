@@ -170,6 +170,31 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
     router.push("/dashboard");
   };
 
+  // Sync the Interview Setup form from the latest session. Declared BEFORE any
+  // early return so hook order stays stable across loading/loaded renders.
+  useEffect(() => {
+    const session = c?.interview_sessions?.[0];
+    if (!c || !session) return;
+    setSetupJobTitle(session.custom_job_title || c.applied_role || "");
+    setSetupInterviewType(session.interview_type || "Technical");
+    setSetupDifficulty(session.difficulty || "Medium");
+    setSetupPersonality(session.ai_personality || "Neutral");
+    setSetupDuration(session.duration_minutes || 45);
+    if (session.focus_skills?.length > 0) {
+      setSetupSkills(session.focus_skills);
+    } else {
+      const profile = (c as any).parsed_profile as any;
+      if (profile?.skills) {
+        const all: string[] = [];
+        for (const cat of ["technical", "languages", "frameworks", "tools"]) {
+          if (Array.isArray(profile.skills[cat])) all.push(...profile.skills[cat]);
+        }
+        setSetupSkills(all.slice(0, 12));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c?.id]);
+
   if (loading) return (
     <div className="min-h-full bg-background flex items-center justify-center">
       <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
@@ -187,29 +212,6 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
 
   const latestSession = c.interview_sessions?.[0];
   const rating = c.overall_rating || "Pending";
-
-  // Sync setup form from session whenever candidate data loads
-  useEffect(() => {
-    if (!latestSession) return;
-    setSetupJobTitle(latestSession.custom_job_title || c.applied_role || "");
-    setSetupInterviewType(latestSession.interview_type || "Technical");
-    setSetupDifficulty(latestSession.difficulty || "Medium");
-    setSetupPersonality(latestSession.ai_personality || "Neutral");
-    setSetupDuration(latestSession.duration_minutes || 45);
-    // Skills: use focus_skills if set, else derive from candidate parsed_profile
-    if (latestSession.focus_skills?.length > 0) {
-      setSetupSkills(latestSession.focus_skills);
-    } else {
-      const profile = (c as any).parsed_profile as any;
-      if (profile?.skills) {
-        const all: string[] = [];
-        for (const cat of ["technical", "languages", "frameworks", "tools"]) {
-          if (Array.isArray(profile.skills[cat])) all.push(...profile.skills[cat]);
-        }
-        setSetupSkills(all.slice(0, 12));
-      }
-    }
-  }, [c.id]);
   const ratingStyle = RATING_STYLE[rating] || RATING_STYLE["Pending"];
   const skills = c.skills || [];
   const violations = latestSession?.violations || [];
