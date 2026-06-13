@@ -186,3 +186,31 @@ html:not(.dark) .glass-panel {
 .hiring-gradient {
   background: linear-gradient(135deg, rgb(var(--c-primary)) 0%, rgb(var(--c-primary-container)) 100%);
 }
+
+/* ─── Accessibility: visible keyboard focus ──────────────────── */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--c-primary));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Don't double up when a component already manages its own focus ring */
+:where(button, a)[class*="focus-visible:ring"]:focus-visible {
+  outline: none;
+}
+
+/* ─── Smooth, subtle theme + interaction transitions ─────────── */
+button, a, input, select, textarea {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Respect reduced-motion ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

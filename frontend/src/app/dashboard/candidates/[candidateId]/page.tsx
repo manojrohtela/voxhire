@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCandidate } from "@/hooks/useData";
 import { candidatesApi, interviewsApi } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
+import { SegmentedControl } from "@/components/ui";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
@@ -845,61 +846,25 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                     {/* Interview Type */}
                     <div>
                       <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">Interview Type</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {["Technical", "HR", "Leadership", "Sales"].map((t) => (
-                          <button key={t} onClick={() => setSetupInterviewType(t)}
-                            className={`py-2 rounded-lg text-xs font-medium border transition-all ${
-                              setupInterviewType === t ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2 hover:border-strong"
-                            }`}>
-                            {t}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl columns={4} options={["Technical", "HR", "Leadership", "Sales"]} value={setupInterviewType} onChange={setSetupInterviewType} />
                     </div>
 
                     {/* Difficulty */}
                     <div>
                       <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">Difficulty</label>
-                      <div className="flex gap-2">
-                        {["Easy", "Medium", "Hard"].map((d) => (
-                          <button key={d} onClick={() => setSetupDifficulty(d)}
-                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
-                              setupDifficulty === d ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2 hover:border-strong"
-                            }`}>
-                            {d}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl options={["Easy", "Medium", "Hard"]} value={setupDifficulty} onChange={setSetupDifficulty} />
                     </div>
 
                     {/* Duration */}
                     <div>
                       <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">Duration</label>
-                      <div className="flex gap-2">
-                        {[30, 45, 60, 90].map((d) => (
-                          <button key={d} onClick={() => setSetupDuration(d)}
-                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
-                              setupDuration === d ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2 hover:border-strong"
-                            }`}>
-                            {d}m
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl options={[30, 45, 60, 90].map((d) => ({ label: `${d}m`, value: d }))} value={setupDuration} onChange={setSetupDuration} />
                     </div>
 
                     {/* AI Personality */}
                     <div>
                       <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-2">AI Personality</label>
-                      <div className="flex gap-2">
-                        {["Friendly", "Neutral", "Strict"].map((p) => (
-                          <button key={p} onClick={() => setSetupPersonality(p)}
-                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
-                              setupPersonality === p ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2 hover:border-strong"
-                            }`}>
-                            {p}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl options={["Friendly", "Neutral", "Strict"]} value={setupPersonality} onChange={setSetupPersonality} />
                     </div>
 
                     {/* Skills */}

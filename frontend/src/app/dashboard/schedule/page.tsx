@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCandidates, useInterviews } from "@/hooks/useData";
 import { interviewsApi } from "@/lib/api-client";
+import { SegmentedControl } from "@/components/ui";
 
 const DURATIONS = [30, 45, 60, 90];
 const INTERVIEW_TYPES = ["Technical", "HR", "Leadership", "Sales"];
@@ -295,16 +296,11 @@ function ScheduleContent() {
                     <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-violet-400 text-xs font-bold">4</div>
                     <h2 className="text-foreground-2 text-sm font-medium">Duration</h2>
                   </div>
-                  <div className="flex gap-2">
-                    {DURATIONS.map((d) => (
-                      <button key={d} onClick={() => setDuration(d)}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${
-                          duration === d ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2"
-                        }`}>
-                        {d}m
-                      </button>
-                    ))}
-                  </div>
+                  <SegmentedControl
+                    options={DURATIONS.map((d) => ({ label: `${d}m`, value: d }))}
+                    value={duration}
+                    onChange={setDuration}
+                  />
                 </div>
               )}
 
@@ -318,42 +314,15 @@ function ScheduleContent() {
                   <div className="space-y-4">
                     <div>
                       <p className="text-foreground-4 text-xs mb-2">Interview Type</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {INTERVIEW_TYPES.map((t) => (
-                          <button key={t} onClick={() => setInterviewType(t)}
-                            className={`py-2 rounded-lg text-xs font-medium border transition-all ${
-                              interviewType === t ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2"
-                            }`}>
-                            {t}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl columns={4} options={INTERVIEW_TYPES} value={interviewType} onChange={setInterviewType} />
                     </div>
                     <div>
                       <p className="text-foreground-4 text-xs mb-2">Difficulty</p>
-                      <div className="flex gap-2">
-                        {DIFFICULTIES.map((d) => (
-                          <button key={d} onClick={() => setDifficulty(d)}
-                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
-                              difficulty === d ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2"
-                            }`}>
-                            {d}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
                     </div>
                     <div>
                       <p className="text-foreground-4 text-xs mb-2">AI Personality</p>
-                      <div className="flex gap-2">
-                        {AI_PERSONALITIES.map((p) => (
-                          <button key={p} onClick={() => setAiPersonality(p)}
-                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
-                              aiPersonality === p ? "bg-violet-500/15 border-violet-500/30 text-violet-300" : "border-base text-foreground-3 hover:text-foreground-2"
-                            }`}>
-                            {p}
-                          </button>
-                        ))}
-                      </div>
+                      <SegmentedControl options={AI_PERSONALITIES} value={aiPersonality} onChange={setAiPersonality} />
                     </div>
                   </div>
                 </div>
