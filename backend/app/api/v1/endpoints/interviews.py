@@ -12,7 +12,7 @@ PUT  /api/v1/interviews/session/{link_token}/status  — Candidate updates statu
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -161,9 +161,14 @@ async def create_interview(
     scheduled_at = None
     if body.scheduled_at:
         try:
-            scheduled_at = datetime.fromisoformat(body.scheduled_at)
+            scheduled_at = datetime.fromisoformat(body.scheduled_at.replace("Z", "+00:00"))
         except ValueError:
             raise HTTPException(400, detail="Invalid scheduled_at format. Use ISO 8601.")
+        # Reject scheduling in the past (allow a 2-minute grace for clock skew).
+        now = datetime.now(timezone.utc)
+        sched_cmp = scheduled_at if scheduled_at.tzinfo else scheduled_at.replace(tzinfo=timezone.utc)
+        if sched_cmp < now - timedelta(minutes=2):
+            raise HTTPException(400, detail="Interview time must be in the future.")
 
     session = InterviewSession(
         id=str(uuid.uuid4()),

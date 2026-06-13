@@ -276,16 +276,27 @@ function ScheduleContent() {
                     <span className="text-foreground-4 text-xs ml-auto">{dateLabel}</span>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    {TIME_SLOTS.map((slot) => (
-                      <button key={slot.time} onClick={() => setSelectedSlot(slot.time)}
-                        className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
-                          selectedSlot === slot.time ? "bg-violet-500 text-white border border-violet-400"
-                          : "bg-surface-hi border border-base text-foreground-2 hover:border-violet-500/30 hover:text-foreground"
-                        }`}>
-                        {slot.time}
-                      </button>
-                    ))}
+                    {TIME_SLOTS.map((slot) => {
+                      // Disable slots already in the past when the selected day is today.
+                      const slotPast = selectedDate
+                        ? new Date(timeToISO(selectedDate, slot.time)).getTime() <= Date.now()
+                        : false;
+                      return (
+                        <button key={slot.time} disabled={slotPast}
+                          onClick={() => setSelectedSlot(slot.time)}
+                          className={`py-2 px-1 rounded-lg text-xs font-medium transition-all ${
+                            slotPast ? "bg-surface-hi/40 border border-faint text-foreground-5 cursor-not-allowed line-through"
+                            : selectedSlot === slot.time ? "bg-violet-500 text-white border border-violet-400"
+                            : "bg-surface-hi border border-base text-foreground-2 hover:border-violet-500/30 hover:text-foreground"
+                          }`}>
+                          {slot.time}
+                        </button>
+                      );
+                    })}
                   </div>
+                  {selectedDate && TIME_SLOTS.every((s) => new Date(timeToISO(selectedDate, s.time)).getTime() <= Date.now()) && (
+                    <p className="text-foreground-4 text-xs mt-3">No time slots left today — pick a future date.</p>
+                  )}
                 </div>
               )}
 

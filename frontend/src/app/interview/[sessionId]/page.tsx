@@ -14,7 +14,10 @@ const VIOLATION_MESSAGES: Record<ViolationType, string> = {
   SCREEN_SHARE_STOP: "Screen sharing was interrupted.",
 };
 
-type InterviewPhase = "intro" | "waiting" | "permission" | "active" | "completed" | "terminated";
+type InterviewPhase = "intro" | "waiting" | "expired" | "permission" | "active" | "completed" | "terminated";
+
+// Candidates may join up to this long after the scheduled start; after that the link expires.
+const JOIN_GRACE_MS = 15 * 60 * 1000;
 
 interface SessionInfo {
   sessionId: string;
@@ -88,13 +91,20 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
       .finally(() => setSessionLoading(false));
   }, [linkToken]);
 
-  // Gate: switch to "waiting" phase if scheduled time hasn't arrived
+  // Gate: too-early → "waiting"; too-late (past grace) → "expired".
   useEffect(() => {
     if (sessionLoading || !session.scheduledAt) return;
     const scheduledMs = new Date(session.scheduledAt).getTime();
 
     const tick = () => {
-      const diff = scheduledMs - Date.now();
+      const now = Date.now();
+      const diff = scheduledMs - now;
+
+      // Joined too late — only gate before the interview actually starts.
+      if (now - scheduledMs > JOIN_GRACE_MS) {
+        setPhase((p) => (["active", "completed", "terminated"].includes(p) ? p : "expired"));
+        return;
+      }
       if (diff <= 0) {
         setPhase((p) => (p === "waiting" ? "intro" : p));
         return;
@@ -128,7 +138,7 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
 
   const {
     isMediaReady, mediaError, attachVideo,
-    initMedia, beginInterview,
+    initMedia, beginInterview, vapiError,
     transcript, isListening, isCandidateThinking, isAIThinking, isAISpeaking,
   } = useVapiInterview({
     sessionId:  session.sessionId,
@@ -190,6 +200,45 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
     await requestFullscreen();
     setActiveWarning(null);
   }, [requestFullscreen]);
+
+  // ─── Expired (joined too late) ───────────────────────────────────
+  if (phase === "expired") {
+    const scheduledDate = session.scheduledAt ? new Date(session.scheduledAt) : null;
+    const when = scheduledDate?.toLocaleString("en-IN", {
+      weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
+    });
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="w-20 h-20 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-white text-2xl font-bold mb-2">This interview has closed</h1>
+          <p className="text-[#888] text-sm mb-6">
+            The join window for this interview has passed. Interviews must be started within 15 minutes
+            of the scheduled time.
+          </p>
+          {when && (
+            <div className="bg-[#13131a] border border-[#1e1e2e] rounded-2xl px-5 py-4 text-left space-y-2">
+              {session.orgName && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#555] text-xs">Company</span>
+                  <span className="text-[#aaa] text-sm font-medium">{session.orgName}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-[#555] text-xs">Was scheduled for</span>
+                <span className="text-[#aaa] text-sm font-medium">{when}</span>
+              </div>
+            </div>
+          )}
+          <p className="text-[#444] text-xs mt-6">Please contact the recruiter to reschedule.</p>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Waiting (too early) ─────────────────────────────────────────
   if (phase === "waiting") {
@@ -809,13 +858,26 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {transcript.length === 0 && (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="w-10 h-10 rounded-full bg-[#13131a] border border-[#1e1e2e] flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-5 h-5 text-[#444]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                  </div>
-                  <p className="text-[#444] text-sm">AI interviewer is preparing...</p>
+                <div className="text-center max-w-sm">
+                  {vapiError ? (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <p className="text-red-400 text-sm font-medium mb-1">Couldn&apos;t connect the AI interviewer</p>
+                      <p className="text-[#666] text-xs">{vapiError}</p>
+                      <p className="text-[#444] text-xs mt-2">Please refresh and try again, or contact the recruiter.</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-[#13131a] border border-[#1e1e2e] flex items-center justify-center mx-auto mb-3">
+                        <span className="w-5 h-5 border-2 border-[#6c63ff] border-t-transparent rounded-full animate-spin" />
+                      </div>
+                      <p className="text-[#444] text-sm">Connecting the AI interviewer…</p>
+                    </>
+                  )}
                 </div>
               </div>
             )}
