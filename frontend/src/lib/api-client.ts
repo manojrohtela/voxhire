@@ -122,6 +122,7 @@ export const interviewsApi = {
     difficulty?: string;
     question_strategy?: string;
     ai_personality?: string;
+    focus_skills?: string[];
   }) => request<any>("/api/v1/interviews", { method: "POST", body: JSON.stringify(body) }),
 
   updateConfig: (id: string, body: {
