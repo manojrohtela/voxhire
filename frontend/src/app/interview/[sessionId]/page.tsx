@@ -14,7 +14,7 @@ const VIOLATION_MESSAGES: Record<ViolationType, string> = {
   SCREEN_SHARE_STOP: "Screen sharing was interrupted.",
 };
 
-type InterviewPhase = "intro" | "permission" | "active" | "completed" | "terminated";
+type InterviewPhase = "intro" | "waiting" | "permission" | "active" | "completed" | "terminated";
 
 interface SessionInfo {
   sessionId: string;
@@ -27,6 +27,7 @@ interface SessionInfo {
   interviewType: string;
   difficulty: string;
   aiPersonality: string;
+  scheduledAt: string | null;
 }
 
 const DEFAULT_SESSION: SessionInfo = {
@@ -40,6 +41,7 @@ const DEFAULT_SESSION: SessionInfo = {
   interviewType: "Technical",
   difficulty: "Medium",
   aiPersonality: "Neutral",
+  scheduledAt: null,
 };
 
 function toStringArray(arr: unknown): string[] {
@@ -53,6 +55,7 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
   const [phase, setPhase]                 = useState<InterviewPhase>("intro");
   const [session, setSession]             = useState<SessionInfo>(DEFAULT_SESSION);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [countdown, setCountdown]         = useState<string>("");
   const [activeWarning, setActiveWarning]   = useState<string | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const warningTimerRef  = useRef<NodeJS.Timeout | null>(null);
@@ -78,11 +81,42 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
           interviewType:   data?.interview_type ?? "Technical",
           difficulty:      data?.difficulty ?? "Medium",
           aiPersonality:   data?.ai_personality ?? "Neutral",
+          scheduledAt:     data?.scheduled_at ?? null,
         });
       })
       .catch(() => {})
       .finally(() => setSessionLoading(false));
   }, [linkToken]);
+
+  // Gate: switch to "waiting" phase if scheduled time hasn't arrived
+  useEffect(() => {
+    if (sessionLoading || !session.scheduledAt) return;
+    const scheduledMs = new Date(session.scheduledAt).getTime();
+
+    const tick = () => {
+      const diff = scheduledMs - Date.now();
+      if (diff <= 0) {
+        setPhase((p) => (p === "waiting" ? "intro" : p));
+        return;
+      }
+      // If more than 10 minutes early, show waiting screen
+      if (diff > 10 * 60 * 1000) {
+        setPhase("waiting");
+      }
+      const h = Math.floor(diff / 3_600_000);
+      const m = Math.floor((diff % 3_600_000) / 60_000);
+      const s = Math.floor((diff % 60_000) / 1_000);
+      setCountdown(
+        h > 0
+          ? `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`
+          : `${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`
+      );
+    };
+
+    tick();
+    const id = setInterval(tick, 1_000);
+    return () => clearInterval(id);
+  }, [sessionLoading, session.scheduledAt]);
 
   const showWarning = useCallback((message: string) => {
     if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
@@ -156,6 +190,84 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
     await requestFullscreen();
     setActiveWarning(null);
   }, [requestFullscreen]);
+
+  // ─── Waiting (too early) ─────────────────────────────────────────
+  if (phase === "waiting") {
+    const scheduledDate = session.scheduledAt ? new Date(session.scheduledAt) : null;
+    const formattedDate = scheduledDate?.toLocaleDateString("en-IN", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+    });
+    const formattedTime = scheduledDate?.toLocaleTimeString("en-IN", {
+      hour: "2-digit", minute: "2-digit",
+    });
+
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+
+          <div className="flex items-center justify-center gap-2 mb-10">
+            <div className="w-7 h-7 rounded-lg bg-[#6c63ff] flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+              </svg>
+            </div>
+            <span className="text-white font-semibold tracking-tight">VoxHire</span>
+          </div>
+
+          {/* Clock icon */}
+          <div className="w-20 h-20 rounded-full bg-[#6c63ff]/10 border border-[#6c63ff]/20 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-[#6c63ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+            </svg>
+          </div>
+
+          <h1 className="text-white text-2xl font-bold mb-2">Interview Not Started Yet</h1>
+          <p className="text-[#666] text-sm mb-8">
+            Your interview is scheduled and ready. Please come back at the scheduled time below.
+          </p>
+
+          {/* Scheduled time card */}
+          <div className="bg-[#13131a] border border-[#1e1e2e] rounded-2xl p-6 mb-6 text-left space-y-3">
+            {session.orgName && (
+              <div className="flex items-center justify-between">
+                <span className="text-[#555] text-xs">Invited by</span>
+                <span className="text-[#aaa] text-sm font-medium">{session.orgName}</span>
+              </div>
+            )}
+            {session.appliedRole && (
+              <div className="flex items-center justify-between">
+                <span className="text-[#555] text-xs">Role</span>
+                <span className="text-[#aaa] text-sm font-medium">{session.appliedRole}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-[#555] text-xs">Date</span>
+              <span className="text-[#aaa] text-sm font-medium">{formattedDate}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[#555] text-xs">Time</span>
+              <span className="text-white text-sm font-bold">{formattedTime}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[#555] text-xs">Duration</span>
+              <span className="text-[#aaa] text-sm font-medium">{session.durationMinutes} minutes</span>
+            </div>
+          </div>
+
+          {/* Countdown */}
+          <div className="bg-[#6c63ff]/5 border border-[#6c63ff]/15 rounded-2xl p-5 mb-6">
+            <p className="text-[#555] text-xs uppercase tracking-wider mb-2">Interview starts in</p>
+            <p className="text-[#6c63ff] text-4xl font-bold font-mono tracking-tight">{countdown}</p>
+          </div>
+
+          <p className="text-[#444] text-xs">
+            This page will automatically unlock when it's time.{" "}
+            <span className="text-[#555]">Keep this tab open.</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Intro ────────────────────────────────────────────────────────
   if (phase === "intro") {
