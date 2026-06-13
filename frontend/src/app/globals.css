@@ -29,15 +29,16 @@
 
 :root {
   /* Brand & Primary */
-  --c-primary:               79 55 138;
+  /* Unified brand = indigo. Light mode uses a darker shade for contrast on white. */
+  --c-primary:               79 70 229;   /* indigo-600 #4F46E5 */
   --c-on-primary:            255 255 255;
-  --c-primary-container:     103 80 164;
-  --c-on-primary-container:  224 210 255;
-  --c-inverse-primary:       207 188 255;
-  --c-primary-fixed:         233 221 255;
-  --c-primary-fixed-dim:     207 188 255;
-  --c-on-primary-fixed:      34 0 93;
-  --c-on-primary-fixed-variant: 79 55 138;
+  --c-primary-container:     108 99 255;  /* brand indigo #6C63FF */
+  --c-on-primary-container:  237 235 255;
+  --c-inverse-primary:       179 173 255;
+  --c-primary-fixed:         224 221 255;
+  --c-primary-fixed-dim:     179 173 255;
+  --c-on-primary-fixed:      20 16 80;
+  --c-on-primary-fixed-variant: 79 70 229;
 
   /* Secondary */
   --c-secondary:             99 89 124;
@@ -99,6 +100,13 @@
 }
 
 .dark {
+  /* Primary — dark (brighter indigo so it pops on dark surfaces) */
+  --c-primary:               108 99 255;  /* brand indigo #6C63FF */
+  --c-on-primary:            255 255 255;
+  --c-primary-container:     67 56 202;   /* indigo-700 */
+  --c-on-primary-container:  224 221 255;
+  --c-surface-tint:          108 99 255;
+
   /* Surface Scale — dark */
   --c-background:            20 18 24;
   --c-on-background:         230 225 229;

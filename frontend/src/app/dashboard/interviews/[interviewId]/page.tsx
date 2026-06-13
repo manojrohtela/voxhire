@@ -94,11 +94,11 @@ function ScoreRing({ score, label, color }: { score: number | null; label: strin
             className="transition-all duration-700"
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">
+        <span className="absolute inset-0 flex items-center justify-center text-foreground font-bold text-lg">
           {score !== null ? score : "—"}
         </span>
       </div>
-      <span className="text-[#888] text-xs font-medium">{label}</span>
+      <span className="text-foreground-2 text-xs font-medium">{label}</span>
     </div>
   );
 }
@@ -106,24 +106,24 @@ function ScoreRing({ score, label, color }: { score: number | null; label: strin
 function SkillBar({ skill, score, rating, aiNotes }: { skill: string; score: number; rating: string; aiNotes: string }) {
   const color = rating === "Strong" ? "#10b981" : rating === "Medium" ? "#6c63ff" : "#f59e0b";
   const ratingColor = rating === "Strong" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-    : rating === "Medium" ? "text-[#6c63ff] bg-[#6c63ff]/10 border-[#6c63ff]/20"
+    : rating === "Medium" ? "text-primary bg-primary/10 border-primary/20"
     : "text-amber-400 bg-amber-500/10 border-amber-500/20";
   return (
-    <div className="p-4 bg-[#13131a] border border-[#1e1e2e] rounded-xl hover:border-[#2a2a3a] transition-colors">
+    <div className="p-4 bg-surface-hi border border-base rounded-xl hover:border-strong transition-colors">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-white text-sm font-semibold">{skill}</span>
+        <span className="text-foreground text-sm font-semibold">{skill}</span>
         <div className="flex items-center gap-2">
-          <span className="text-white text-sm font-bold">{score}</span>
+          <span className="text-foreground text-sm font-bold">{score}</span>
           <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ratingColor}`}>{rating}</span>
         </div>
       </div>
-      <div className="h-1.5 bg-[#1e1e2e] rounded-full overflow-hidden mb-2">
+      <div className="h-1.5 bg-ink/10 rounded-full overflow-hidden mb-2">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${score}%`, backgroundColor: color }}
         />
       </div>
-      {aiNotes && <p className="text-[#666] text-xs leading-relaxed mt-1">{aiNotes}</p>}
+      {aiNotes && <p className="text-foreground-3 text-xs leading-relaxed mt-1">{aiNotes}</p>}
     </div>
   );
 }
@@ -133,7 +133,7 @@ function VerdictBadge({ verdict }: { verdict: string }) {
     "Verified": "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
     "Partially Verified": "text-amber-400 bg-amber-500/10 border-amber-500/20",
     "Not Verified": "text-red-400 bg-red-500/10 border-red-500/20",
-  }[verdict] ?? "text-[#888] bg-[#1e1e2e] border-[#2a2a3a]";
+  }[verdict] ?? "text-foreground-2 bg-ink/10 border-strong";
   return (
     <span className={`text-xs px-2.5 py-1 rounded-full border font-medium whitespace-nowrap ${cfg}`}>
       {verdict}
@@ -183,18 +183,18 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#6c63ff] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (error || !report) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-400 text-sm mb-4">{error || "Report not found"}</p>
-          <button onClick={() => router.back()} className="text-[#6c63ff] text-sm underline">Go back</button>
+          <button onClick={() => router.back()} className="text-primary text-sm underline">Go back</button>
         </div>
       </div>
     );
@@ -212,17 +212,17 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
   const hasEval = report.evaluation_status === "complete";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className="min-h-screen bg-background text-foreground">
 
       {/* Top nav */}
-      <div className="border-b border-[#1a1a24] bg-[#0d0d14] px-6 py-3 flex items-center gap-4 sticky top-0 z-20">
-        <button onClick={() => router.back()} className="text-[#555] hover:text-white transition-colors">
+      <div className="border-b border-base bg-surface px-6 py-3 flex items-center gap-4 sticky top-0 z-20">
+        <button onClick={() => router.back()} className="text-foreground-3 hover:text-foreground transition-colors">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
-        <div className="w-px h-4 bg-[#1e1e2e]" />
-        <span className="text-[#555] text-sm">Interview Report</span>
+        <div className="w-px h-4 bg-ink/10" />
+        <span className="text-foreground-3 text-sm">Interview Report</span>
         <div className="ml-auto flex items-center gap-2">
           {isProcessing && (
             <div className="flex items-center gap-2 text-amber-400 text-xs">
@@ -236,18 +236,18 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
 
         {/* ── Hero header ── */}
-        <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl p-6">
+        <div className="bg-surface border border-base rounded-2xl p-6">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-[#555] text-xs uppercase tracking-wider font-medium">
+                <span className="text-foreground-3 text-xs uppercase tracking-wider font-medium">
                   {report.interview_type || "Technical"} Interview · {report.difficulty || "Medium"}
                 </span>
               </div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="text-[#333] text-sm">{interviewDate}</div>
+                <div className="text-foreground-4 text-sm">{interviewDate}</div>
                 {report.actual_duration_minutes && (
-                  <div className="text-[#333] text-sm">{report.actual_duration_minutes} min</div>
+                  <div className="text-foreground-4 text-sm">{report.actual_duration_minutes} min</div>
                 )}
               </div>
 
@@ -259,7 +259,7 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
                 </div>
               )}
               {isProcessing && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[#2a2a3a] bg-[#13131a]">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-strong bg-surface-hi">
                   <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                   <span className="text-amber-400 font-medium">Evaluating...</span>
                 </div>
@@ -285,15 +285,15 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
             {/* Executive summary */}
             {hasEval && executiveBullets.length > 0 && (
-              <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl p-5">
-                <h2 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#6c63ff] rounded-full" />
+              <div className="bg-surface border border-base rounded-2xl p-5">
+                <h2 className="text-foreground font-semibold text-sm mb-4 flex items-center gap-2">
+                  <div className="w-1 h-4 bg-primary rounded-full" />
                   Executive Summary
                 </h2>
                 <ul className="space-y-2.5">
                   {executiveBullets.map((bullet, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-[#aaa] text-sm leading-relaxed">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#6c63ff] mt-1.5 shrink-0" />
+                    <li key={i} className="flex items-start gap-2.5 text-foreground-2 text-sm leading-relaxed">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                       {bullet.replace(/^[-•]\s*/, "")}
                     </li>
                   ))}
@@ -303,19 +303,19 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
             {/* Summary narrative */}
             {hasEval && report.ai_summary && (
-              <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl p-5">
-                <h2 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#6c63ff] rounded-full" />
+              <div className="bg-surface border border-base rounded-2xl p-5">
+                <h2 className="text-foreground font-semibold text-sm mb-3 flex items-center gap-2">
+                  <div className="w-1 h-4 bg-primary rounded-full" />
                   Interview Summary
                 </h2>
-                <p className="text-[#aaa] text-sm leading-relaxed">{report.ai_summary}</p>
+                <p className="text-foreground-2 text-sm leading-relaxed">{report.ai_summary}</p>
               </div>
             )}
 
             {/* Strengths & Weaknesses */}
             {hasEval && (report.strengths?.length > 0 || report.weak_areas?.length > 0) && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#0d0d14] border border-emerald-500/15 rounded-2xl p-5">
+                <div className="bg-surface border border-emerald-500/15 rounded-2xl p-5">
                   <h3 className="text-emerald-400 font-semibold text-sm mb-3 flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -324,7 +324,7 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
                   </h3>
                   <ul className="space-y-2">
                     {(report.strengths || []).map((s, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[#aaa] text-xs leading-relaxed">
+                      <li key={i} className="flex items-start gap-2 text-foreground-2 text-xs leading-relaxed">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0" />
                         {s}
                       </li>
@@ -332,7 +332,7 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
                   </ul>
                 </div>
 
-                <div className="bg-[#0d0d14] border border-red-500/15 rounded-2xl p-5">
+                <div className="bg-surface border border-red-500/15 rounded-2xl p-5">
                   <h3 className="text-red-400 font-semibold text-sm mb-3 flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01" />
@@ -342,7 +342,7 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
                   </h3>
                   <ul className="space-y-2">
                     {(report.weak_areas || []).map((w, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[#aaa] text-xs leading-relaxed">
+                      <li key={i} className="flex items-start gap-2 text-foreground-2 text-xs leading-relaxed">
                         <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1 shrink-0" />
                         {w}
                       </li>
@@ -354,9 +354,9 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
             {/* Skill evaluations */}
             {hasEval && report.skill_evaluations?.length > 0 && (
-              <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl p-5">
-                <h2 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#6c63ff] rounded-full" />
+              <div className="bg-surface border border-base rounded-2xl p-5">
+                <h2 className="text-foreground font-semibold text-sm mb-4 flex items-center gap-2">
+                  <div className="w-1 h-4 bg-primary rounded-full" />
                   Skill Assessment
                 </h2>
                 <div className="grid grid-cols-1 gap-3">
@@ -375,20 +375,20 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
             {/* Resume claim verification */}
             {hasEval && report.resume_claim_verification?.length > 0 && (
-              <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl p-5">
-                <h2 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#6c63ff] rounded-full" />
+              <div className="bg-surface border border-base rounded-2xl p-5">
+                <h2 className="text-foreground font-semibold text-sm mb-4 flex items-center gap-2">
+                  <div className="w-1 h-4 bg-primary rounded-full" />
                   Resume Claim Verification
                 </h2>
                 <div className="space-y-3">
                   {report.resume_claim_verification.map((c, i) => (
-                    <div key={i} className="p-4 bg-[#13131a] border border-[#1e1e2e] rounded-xl">
+                    <div key={i} className="p-4 bg-surface-hi border border-base rounded-xl">
                       <div className="flex items-start justify-between gap-3 mb-2">
-                        <p className="text-white text-xs font-medium">{c.claim}</p>
+                        <p className="text-foreground text-xs font-medium">{c.claim}</p>
                         <VerdictBadge verdict={c.verdict} />
                       </div>
                       {c.interview_evidence && (
-                        <p className="text-[#666] text-xs leading-relaxed">{c.interview_evidence}</p>
+                        <p className="text-foreground-3 text-xs leading-relaxed">{c.interview_evidence}</p>
                       )}
                     </div>
                   ))}
@@ -397,39 +397,39 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
             )}
 
             {/* Transcript toggle */}
-            <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl overflow-hidden">
+            <div className="bg-surface border border-base rounded-2xl overflow-hidden">
               <button
                 onClick={() => setShowTranscript(!showTranscript)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#13131a] transition-colors"
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-hi transition-colors"
               >
-                <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#333] rounded-full" />
+                <h2 className="text-foreground font-semibold text-sm flex items-center gap-2">
+                  <div className="w-1 h-4 bg-ink/20 rounded-full" />
                   Full Transcript
                   {report.transcript?.length > 0 && (
-                    <span className="text-[#555] text-xs font-normal">({report.transcript.length} messages)</span>
+                    <span className="text-foreground-3 text-xs font-normal">({report.transcript.length} messages)</span>
                   )}
                 </h2>
-                <svg className={`w-4 h-4 text-[#555] transition-transform ${showTranscript ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className={`w-4 h-4 text-foreground-3 transition-transform ${showTranscript ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {showTranscript && (
-                <div className="border-t border-[#1e1e2e] px-5 py-4 max-h-96 overflow-y-auto space-y-3">
+                <div className="border-t border-base px-5 py-4 max-h-96 overflow-y-auto space-y-3">
                   {report.transcript?.length === 0 && (
-                    <p className="text-[#444] text-sm text-center py-4">No transcript available</p>
+                    <p className="text-foreground-4 text-sm text-center py-4">No transcript available</p>
                   )}
                   {report.transcript?.map((entry) => (
                     <div key={entry.sequence} className={`flex gap-2.5 ${entry.speaker === "candidate" ? "flex-row-reverse" : ""}`}>
                       <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-xs font-bold ${
-                        entry.speaker === "ai" ? "bg-[#6c63ff]/20 text-[#6c63ff]" : "bg-emerald-500/20 text-emerald-400"
+                        entry.speaker === "ai" ? "bg-primary/20 text-primary" : "bg-emerald-500/20 text-emerald-400"
                       }`}>
                         {entry.speaker === "ai" ? "AI" : "C"}
                       </div>
                       <div className={`max-w-[80%] px-3 py-2 rounded-xl text-xs leading-relaxed ${
                         entry.speaker === "ai"
-                          ? "bg-[#13131a] border border-[#1e1e2e] text-[#bbb]"
-                          : "bg-[#6c63ff]/10 border border-[#6c63ff]/20 text-white"
+                          ? "bg-surface-hi border border-base text-foreground-2"
+                          : "bg-primary/10 border border-primary/20 text-foreground"
                       }`}>
                         {entry.text}
                       </div>
@@ -445,19 +445,19 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
             {/* Interview timeline */}
             {hasEval && report.interview_timeline?.length > 0 && (
-              <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl p-5">
-                <h2 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#6c63ff] rounded-full" />
+              <div className="bg-surface border border-base rounded-2xl p-5">
+                <h2 className="text-foreground font-semibold text-sm mb-4 flex items-center gap-2">
+                  <div className="w-1 h-4 bg-primary rounded-full" />
                   Interview Timeline
                 </h2>
                 <div className="relative">
-                  <div className="absolute left-3 top-2 bottom-2 w-px bg-[#1e1e2e]" />
+                  <div className="absolute left-3 top-2 bottom-2 w-px bg-ink/10" />
                   <div className="space-y-4 pl-8">
                     {report.interview_timeline.map((item, i) => (
                       <div key={i} className="relative">
-                        <div className="absolute -left-5 top-1 w-2 h-2 rounded-full bg-[#6c63ff] border border-[#0d0d14]" />
-                        <p className="text-white text-xs font-semibold mb-0.5">{item.stage}</p>
-                        {item.summary && <p className="text-[#666] text-xs leading-relaxed">{item.summary}</p>}
+                        <div className="absolute -left-5 top-1 w-2 h-2 rounded-full bg-primary border border-surface" />
+                        <p className="text-foreground text-xs font-semibold mb-0.5">{item.stage}</p>
+                        {item.summary && <p className="text-foreground-3 text-xs leading-relaxed">{item.summary}</p>}
                       </div>
                     ))}
                   </div>
@@ -467,14 +467,14 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
             {/* Topics */}
             {hasEval && (
-              <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl p-5 space-y-4">
-                <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#6c63ff] rounded-full" />
+              <div className="bg-surface border border-base rounded-2xl p-5 space-y-4">
+                <h2 className="text-foreground font-semibold text-sm flex items-center gap-2">
+                  <div className="w-1 h-4 bg-primary rounded-full" />
                   Topics Analysis
                 </h2>
                 {report.topics_covered?.length > 0 && (
                   <div>
-                    <p className="text-[#555] text-xs uppercase tracking-wider font-medium mb-2">Covered</p>
+                    <p className="text-foreground-3 text-xs uppercase tracking-wider font-medium mb-2">Covered</p>
                     <div className="flex flex-wrap gap-1.5">
                       {report.topics_covered.map((t) => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">{t}</span>
@@ -484,7 +484,7 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
                 )}
                 {report.topics_missing?.length > 0 && (
                   <div>
-                    <p className="text-[#555] text-xs uppercase tracking-wider font-medium mb-2">Not Covered</p>
+                    <p className="text-foreground-3 text-xs uppercase tracking-wider font-medium mb-2">Not Covered</p>
                     <div className="flex flex-wrap gap-1.5">
                       {report.topics_missing.map((t) => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400">{t}</span>
@@ -494,7 +494,7 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
                 )}
                 {report.topics_needs_evaluation?.length > 0 && (
                   <div>
-                    <p className="text-[#555] text-xs uppercase tracking-wider font-medium mb-2">Needs Further Eval</p>
+                    <p className="text-foreground-3 text-xs uppercase tracking-wider font-medium mb-2">Needs Further Eval</p>
                     <div className="flex flex-wrap gap-1.5">
                       {report.topics_needs_evaluation.map((t) => (
                         <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">{t}</span>
@@ -507,15 +507,15 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
             {/* Candidate questions */}
             {hasEval && report.candidate_questions?.length > 0 && (
-              <div className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl p-5">
-                <h2 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
-                  <div className="w-1 h-4 bg-[#6c63ff] rounded-full" />
+              <div className="bg-surface border border-base rounded-2xl p-5">
+                <h2 className="text-foreground font-semibold text-sm mb-3 flex items-center gap-2">
+                  <div className="w-1 h-4 bg-primary rounded-full" />
                   Candidate Questions
                 </h2>
                 <ul className="space-y-2">
                   {report.candidate_questions.map((q, i) => (
-                    <li key={i} className="flex items-start gap-2 text-[#888] text-xs leading-relaxed">
-                      <span className="text-[#555] shrink-0">{i + 1}.</span>
+                    <li key={i} className="flex items-start gap-2 text-foreground-2 text-xs leading-relaxed">
+                      <span className="text-foreground-3 shrink-0">{i + 1}.</span>
                       {q}
                     </li>
                   ))}
@@ -525,12 +525,12 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
 
             {/* Processing placeholder */}
             {isProcessing && (
-              <div className="bg-[#0d0d14] border border-amber-500/20 rounded-2xl p-5">
+              <div className="bg-surface border border-amber-500/20 rounded-2xl p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                   <h2 className="text-amber-400 font-semibold text-sm">Evaluation in Progress</h2>
                 </div>
-                <p className="text-[#666] text-xs leading-relaxed">
+                <p className="text-foreground-3 text-xs leading-relaxed">
                   Our AI is analyzing the interview transcript. The full report will appear shortly — this page refreshes automatically.
                 </p>
               </div>

@@ -19,6 +19,19 @@ const config: Config = {
           DEFAULT: C("surface-container"),  /* existing: card background */
           hi:      C("surface-container-high"),
         },
+        /* Unify legacy `violet-*` brand usages onto the indigo brand scale (#6C63FF). */
+        violet: {
+          50:  "#eeedff",
+          100: "#e0dcff",
+          200: "#c7c1ff",
+          300: "#a5a0ff",
+          400: "#8b84ff",
+          500: "#6c63ff",
+          600: "#5a4fe0",
+          700: "#4a40c4",
+          800: "#3a329e",
+          900: "#2c2678",
+        },
         nav:         C("surface-container-low"),
         ink:         C("on-surface"),
         foreground: {
