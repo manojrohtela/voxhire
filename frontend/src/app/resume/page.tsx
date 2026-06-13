@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { resumeApi, candidatesApi } from "@/lib/api-client";
 
-type UploadState = "idle" | "uploading" | "parsed" | "saving" | "done" | "error";
+type UploadState = "idle" | "uploading" | "parsed" | "saving" | "done" | "error" | "duplicate";
 
 const DIFFICULTY_COLOR: Record<string, string> = {
   Easy: "text-green-400 bg-green-400/10 border-green-400/20",
@@ -23,6 +23,7 @@ export default function ResumeUploadPage() {
   const [dragOver, setDragOver] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<any>(null);
   const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
   const [appliedRole, setAppliedRole] = useState<string>("");
@@ -93,8 +94,15 @@ export default function ResumeUploadPage() {
       setUploadState("done");
       setTimeout(() => router.push(`/dashboard/candidates/${candidate.id}`), 1200);
     } catch (e: any) {
-      setError(e.message);
-      setUploadState("parsed");
+      // 409 = duplicate candidate
+      if (e?.status === 409 || e?.detail?.code === "DUPLICATE_CANDIDATE") {
+        const detail = e?.detail ?? {};
+        setDuplicate(detail.existing_candidate ?? null);
+        setUploadState("duplicate");
+      } else {
+        setError(e.message ?? "Failed to save candidate");
+        setUploadState("parsed");
+      }
     }
   };
 
@@ -165,6 +173,71 @@ export default function ResumeUploadPage() {
         )}
 
         {/* Done */}
+        {/* Duplicate candidate notification */}
+        {uploadState === "duplicate" && duplicate && (
+          <div className="border-2 border-amber-500/25 bg-amber-500/5 rounded-2xl p-8 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
+                <svg className="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-amber-400 font-semibold text-base mb-1">Candidate Already Exists</h3>
+                <p className="text-foreground-3 text-sm mb-4">
+                  A candidate with the same {duplicate.email ? "email address" : "phone number"} was already added to your organization.
+                </p>
+                <div className="bg-surface border border-base rounded-xl p-4 space-y-2 mb-5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-foreground-4 text-xs">Name</span>
+                    <span className="text-foreground text-sm font-medium">{duplicate.name}</span>
+                  </div>
+                  {duplicate.email && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-foreground-4 text-xs">Email</span>
+                      <span className="text-foreground-2 text-sm">{duplicate.email}</span>
+                    </div>
+                  )}
+                  {duplicate.phone && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-foreground-4 text-xs">Phone</span>
+                      <span className="text-foreground-2 text-sm">{duplicate.phone}</span>
+                    </div>
+                  )}
+                  {duplicate.applied_role && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-foreground-4 text-xs">Applied Role</span>
+                      <span className="text-foreground-2 text-sm">{duplicate.applied_role}</span>
+                    </div>
+                  )}
+                  {duplicate.created_at && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-foreground-4 text-xs">Added on</span>
+                      <span className="text-foreground-2 text-sm">
+                        {new Date(duplicate.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => router.push(`/dashboard/candidates/${duplicate.id}`)}
+                    className="flex-1 py-2.5 bg-violet-500 hover:bg-violet-400 text-white font-semibold rounded-xl text-sm transition-colors"
+                  >
+                    View Existing Candidate →
+                  </button>
+                  <button
+                    onClick={() => { setUploadState("parsed"); setDuplicate(null); }}
+                    className="px-4 py-2.5 border border-base text-foreground-3 hover:text-foreground-2 rounded-xl text-sm transition-colors"
+                  >
+                    Go Back
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {uploadState === "done" && (
           <div className="border-2 border-emerald-500/20 bg-emerald-500/5 rounded-2xl p-12 text-center mb-6">
             <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">

@@ -166,7 +166,43 @@ async def create_candidate(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new candidate."""
+    """Create a new candidate. Returns 409 with existing candidate info if email/phone already exists in the org."""
+    from sqlalchemy import or_
+
+    # Duplicate check — email or phone already exists in this org
+    filters = []
+    if body.email:
+        filters.append(func.lower(Candidate.email) == body.email.lower().strip())
+    if body.phone:
+        filters.append(Candidate.phone == body.phone.strip())
+
+    if filters:
+        dup_result = await db.execute(
+            select(Candidate).where(
+                Candidate.org_id == current_user["org_id"],
+                or_(*filters),
+            )
+        )
+        existing = dup_result.scalar_one_or_none()
+        if existing:
+            matched_field = "email" if (body.email and existing.email and existing.email.lower() == body.email.lower().strip()) else "phone"
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "DUPLICATE_CANDIDATE",
+                    "message": f"A candidate with this {matched_field} already exists.",
+                    "matched_field": matched_field,
+                    "existing_candidate": {
+                        "id": existing.id,
+                        "name": existing.name,
+                        "email": existing.email,
+                        "phone": existing.phone,
+                        "applied_role": existing.applied_role,
+                        "created_at": existing.created_at.isoformat() if existing.created_at else None,
+                    },
+                },
+            )
+
     candidate = Candidate(
         id=str(uuid.uuid4()),
         org_id=current_user["org_id"],
