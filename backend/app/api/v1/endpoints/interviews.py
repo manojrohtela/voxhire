@@ -12,6 +12,7 @@ PUT  /api/v1/interviews/session/{link_token}/status  — Candidate updates statu
 """
 
 import uuid
+import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +28,9 @@ from app.db.models import (
 )
 from app.modules.auth.dependencies import get_current_user
 from app.core.config import settings
+from app.core.email import send_interview_invitation
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -152,7 +155,8 @@ async def create_interview(
             Candidate.org_id == current_user["org_id"]
         )
     )
-    if not result.scalar_one_or_none():
+    candidate = result.scalar_one_or_none()
+    if not candidate:
         raise HTTPException(404, detail="Candidate not found")
 
     link_token = str(uuid.uuid4()).replace("-", "")
@@ -189,6 +193,28 @@ async def create_interview(
     )
     db.add(session)
     await db.flush()
+
+    # Email the interview invite to the candidate (best-effort; non-fatal).
+    if candidate.email:
+        org = (
+            await db.execute(select(Organization).where(Organization.id == current_user["org_id"]))
+        ).scalar_one_or_none()
+        when = None
+        if scheduled_at:
+            when = scheduled_at.strftime("%A, %d %B %Y at %I:%M %p UTC")
+        try:
+            sent = send_interview_invitation(
+                to_email=candidate.email,
+                candidate_name=candidate.name,
+                org_name=org.name if org else "VoxHire",
+                job_title=candidate.applied_role or body.interview_type,
+                interview_url=session.interview_link,
+                interview_availability=when,
+            )
+            session.invite_email_sent = bool(sent)
+        except Exception as e:  # noqa: BLE001 — email failures must not block scheduling
+            logger.warning("Interview invite email failed: %s", e)
+
     return session_to_dict(session)
 
 

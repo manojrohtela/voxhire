@@ -53,6 +53,27 @@ async def get_vapi_config(
     Returns Vapi Web SDK config for this interview session.
     Auth: X-Interview-Token header (same as transcript/violations endpoints).
     """
+    # Dev test harness — /interview/test launches the real Vapi flow without a DB session.
+    if session_id == "test":
+        skills = ["Python", "FastAPI", "System Design", "PostgreSQL"]
+        return {
+            "vapi_public_key": settings.VAPI_PUBLIC_KEY,
+            "vapi_assistant_id": settings.VAPI_INTERVIEW_ASSISTANT_ID,
+            "variable_values": {
+                "jobTitle": "Senior Python Engineer",
+                "candidateName": "Test Candidate",
+                "orgName": "VoxHire Dev",
+                "experienceLevel": "Mid-Level",
+                "difficulty": "Medium",
+                "requiredSkills": skills,
+                "focusAreas": skills,
+                "durationMinutes": 10,
+                "interviewType": "Technical",
+                "candidateSummary": {},
+            },
+            "metadata": {"sessionId": "test", "linkToken": "test", "test": True},
+        }
+
     result = await db.execute(
         select(InterviewSession).where(InterviewSession.id == session_id)
     )
