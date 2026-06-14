@@ -246,12 +246,13 @@ async def vapi_interview_webhook(
     session.evaluation_status = "processing"
     await db.commit()
 
-    # Run LLM evaluation asynchronously (fire-and-forget, don't block the webhook)
-    asyncio.create_task(
-        _run_evaluation_task(session_id=session.id)
-    )
+    # Run LLM evaluation via the durable queue if configured; otherwise in-process.
+    from app.modules.queue.client import try_enqueue
+    queued = await try_enqueue("run_evaluation_task", session.id)
+    if not queued:
+        asyncio.create_task(_run_evaluation_task(session_id=session.id))
 
-    return {"received": True, "session_id": session.id}
+    return {"received": True, "session_id": session.id, "evaluation_queued": queued}
 
 
 def _normalize_transcript(raw: list[dict]) -> list[dict]:

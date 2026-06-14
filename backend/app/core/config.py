@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Billing — payment provider is pluggable; "" = none (manual super-admin assignment)
     PAYMENT_PROVIDER: str = ""                   # "" | "razorpay" | "stripe"
 
+    # Durable job queue (Arq). Empty = run jobs in-process (no durability).
+    REDIS_URL: str = ""                          # e.g. rediss://default:****@xxx.upstash.io:6379
+
     # SMTP (optional — if empty, invitation link is returned but no email is sent)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
