@@ -1,11 +1,17 @@
 name: CI
 
-# Free GitHub Actions CI. Validates every push/PR so regressions (type errors,
-# broken imports, build failures) are caught before they reach production.
+# Free GitHub Actions CI. Validates the build/tests (type errors, broken imports,
+# build failures) before they reach production.
+#
+# NOTE: trigger is manual (workflow_dispatch) because this account's private-repo
+# Actions minutes are exhausted (GitHub blocks runs as a "billing issue"). Until
+# minutes reset / billing is sorted, use the free local equivalent:  bash scripts/check.sh
+# To re-enable automatic runs, add back the `push`/`pull_request` triggers below.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
 
 jobs:
   backend:
