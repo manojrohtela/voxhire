@@ -11,7 +11,7 @@ Keeps the Vapi webhook handler completely separate from the screening webhook
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -84,6 +84,12 @@ async def get_vapi_config(
         raise HTTPException(403, "Invalid interview token")
     if session.status in (InterviewStatus.COMPLETED, InterviewStatus.TERMINATED):
         raise HTTPException(410, "Interview already completed")
+    # Server-side enforcement of the join window (mirrors the client gate so the
+    # link can't be used directly after it expires). 15-minute grace after start.
+    if session.scheduled_at:
+        sched = session.scheduled_at if session.scheduled_at.tzinfo else session.scheduled_at.replace(tzinfo=timezone.utc)
+        if _utcnow() > sched + timedelta(minutes=15):
+            raise HTTPException(410, "This interview link has expired.")
 
     # Load candidate context
     candidate = (

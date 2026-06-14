@@ -3,9 +3,11 @@ Auth API endpoints — DB-backed.
 """
 
 from fastapi import APIRouter, HTTPException, Depends, status
+from starlette.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from app.core.ratelimit import limiter
 from app.db.database import get_db
 from app.db.models import Organization
 from app.modules.auth import service
@@ -41,7 +43,8 @@ async def signup(body: OrgSignupRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     try:
         user = await service.login_user(db, body.email, body.password)
     except ValueError as e:
