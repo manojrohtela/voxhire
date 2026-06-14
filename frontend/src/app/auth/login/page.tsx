@@ -60,6 +60,18 @@ export default function LoginPage() {
     }
   };
 
+  const tryDemo = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await login("demo@voxhire.ai", "ExploreVoxHire1!");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0f0e14] flex items-center justify-center p-4 overflow-hidden">
       {/* Subtle radial glow */}
@@ -249,6 +261,24 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Demo */}
+          <div className="mt-4">
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-gray-500 text-xs">or</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+            <button
+              type="button"
+              onClick={tryDemo}
+              disabled={loading}
+              className="w-full h-11 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 border border-white/15 text-white hover:bg-white/5"
+            >
+              🚀 Explore the live demo — no signup
+            </button>
+            <p className="text-center text-gray-500 text-xs mt-2">A sample organization with candidates, interviews & reports.</p>
+          </div>
 
           {/* Footer */}
           <div className="mt-6 pt-5 border-t border-white/5 flex flex-col items-center gap-3">
