@@ -33,6 +33,9 @@ class Settings(BaseSettings):
 
     # Billing — payment provider is pluggable; "" = none (manual super-admin assignment)
     PAYMENT_PROVIDER: str = ""                   # "" | "razorpay" | "stripe"
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
 
     # Durable job queue (Arq). Empty = run jobs in-process (no durability).
     REDIS_URL: str = ""                          # e.g. rediss://default:****@xxx.upstash.io:6379

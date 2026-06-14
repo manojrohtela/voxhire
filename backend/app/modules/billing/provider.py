@@ -1,54 +1,105 @@
 """
 Payment provider abstraction.
 
-Billing data (plans, subscriptions, usage) is fully functional without any
-payment provider. When you're ready to charge, implement this interface for
-Razorpay/Stripe and return it from `get_payment_provider()` — nothing else in
-the app needs to change.
+Billing data (plans, subscriptions, usage) works without any provider. To charge,
+set PAYMENT_PROVIDER + the provider's keys; `get_payment_provider()` returns the
+right implementation. Everything else in the app talks only to this interface.
 """
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import hmac
+import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Optional
 
 from app.core.config import settings
 
-
-@dataclass
-class CheckoutSession:
-    url: Optional[str]          # hosted checkout URL to redirect the org to
-    provider_ref: Optional[str] # provider-side id (subscription/order)
+logger = logging.getLogger(__name__)
 
 
 class PaymentProvider(ABC):
     name: str = "none"
+    enabled: bool = False
 
     @abstractmethod
-    async def create_checkout(self, *, org_id: str, plan_slug: str, amount_cents: int, currency: str) -> CheckoutSession:
+    async def create_order(self, *, amount_cents: int, currency: str, notes: dict) -> dict:
+        """Create a payment order. Returns dict with at least {order_id, key_id, amount, currency}."""
+
+    @abstractmethod
+    def verify_payment_signature(self, *, order_id: str, payment_id: str, signature: str) -> bool:
         ...
 
     @abstractmethod
-    async def verify_webhook(self, *, payload: bytes, signature: str) -> bool:
+    def verify_webhook(self, *, payload: bytes, signature: str) -> bool:
         ...
 
 
 class NoopProvider(PaymentProvider):
-    """Default — no real charging. Subscriptions are assigned manually by super-admin."""
-
     name = "none"
+    enabled = False
 
-    async def create_checkout(self, **_) -> CheckoutSession:
-        return CheckoutSession(url=None, provider_ref=None)
+    async def create_order(self, **_) -> dict:
+        raise RuntimeError("No payment provider configured")
 
-    async def verify_webhook(self, **_) -> bool:
+    def verify_payment_signature(self, **_) -> bool:
+        return False
+
+    def verify_webhook(self, **_) -> bool:
         return False
 
 
+class RazorpayProvider(PaymentProvider):
+    name = "razorpay"
+
+    def __init__(self) -> None:
+        import razorpay  # lazy so the dep is only needed when enabled
+        self.key_id = settings.RAZORPAY_KEY_ID
+        self.key_secret = settings.RAZORPAY_KEY_SECRET
+        self.webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+        self.enabled = bool(self.key_id and self.key_secret)
+        self._client = razorpay.Client(auth=(self.key_id, self.key_secret)) if self.enabled else None
+
+    async def create_order(self, *, amount_cents: int, currency: str, notes: dict) -> dict:
+        # Razorpay amount is in the minor unit (paise for INR) — same as our price_cents.
+        def _create():
+            return self._client.order.create({
+                "amount": amount_cents,
+                "currency": currency or "INR",
+                "notes": notes,
+                "payment_capture": 1,
+            })
+        order = await asyncio.to_thread(_create)
+        return {
+            "order_id": order["id"],
+            "key_id": self.key_id,
+            "amount": order["amount"],
+            "currency": order["currency"],
+        }
+
+    def verify_payment_signature(self, *, order_id: str, payment_id: str, signature: str) -> bool:
+        # HMAC-SHA256(order_id|payment_id, key_secret) — verified locally, no API call.
+        expected = hmac.new(
+            self.key_secret.encode(), f"{order_id}|{payment_id}".encode(), hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(expected, signature or "")
+
+    def verify_webhook(self, *, payload: bytes, signature: str) -> bool:
+        if not self.webhook_secret:
+            return False
+        expected = hmac.new(self.webhook_secret.encode(), payload, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected, signature or "")
+
+
 def get_payment_provider() -> PaymentProvider:
-    """Single place to swap in Razorpay/Stripe later (driven by settings.PAYMENT_PROVIDER)."""
-    provider = getattr(settings, "PAYMENT_PROVIDER", "") or ""
-    # if provider == "razorpay": return RazorpayProvider()
-    # if provider == "stripe":   return StripeProvider()
+    provider = (settings.PAYMENT_PROVIDER or "").lower()
+    if provider == "razorpay":
+        try:
+            return RazorpayProvider()
+        except Exception as e:  # noqa: BLE001 — bad config shouldn't crash imports
+            logger.error("Razorpay provider init failed: %s", e)
+            return NoopProvider()
+    # if provider == "stripe": return StripeProvider()
     return NoopProvider()

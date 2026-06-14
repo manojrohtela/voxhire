@@ -51,7 +51,7 @@ export function UsageBanner() {
             {interviews_limit != null ? ` / ${interviews_limit}` : ""} interviews this month
           </span>
           {(interviews_over_limit || near) && (
-            <Link href="/dashboard/settings" className="text-primary text-xs font-medium hover:underline shrink-0">
+            <Link href="/dashboard/billing" className="text-primary text-xs font-medium hover:underline shrink-0">
               {interviews_over_limit ? "Upgrade plan →" : "View plan →"}
             </Link>
           )}

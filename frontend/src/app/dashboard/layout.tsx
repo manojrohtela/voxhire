@@ -14,6 +14,7 @@ const NAV_ORG: NavItem[] = [
   { icon: "event_available",  label: "Interviews",  href: "/dashboard/schedule" },
   { icon: "psychology",       label: "AI Reports",  href: "/dashboard/reports" },
   { icon: "group_work",       label: "Team",        href: "/dashboard/team" },
+  { icon: "credit_card",      label: "Billing",     href: "/dashboard/billing" },
   { icon: "settings",         label: "Settings",    href: "/dashboard/settings" },
 ];
 

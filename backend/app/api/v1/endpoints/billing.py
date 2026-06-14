@@ -6,10 +6,12 @@ blocked. Orgs without a subscription are treated as unlimited (grandfathered),
 so this module is fully backward-compatible.
 """
 
-from datetime import datetime, timezone
+import json
+import logging
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -21,7 +23,9 @@ from app.db.models import (
 )
 from app.modules.auth.dependencies import get_current_user, require_super_admin
 from app.modules.audit.log import record as audit
+from app.modules.billing.provider import get_payment_provider
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -171,6 +175,109 @@ async def list_public_plans(_: dict = Depends(get_current_user), db: AsyncSessio
 @router.get("/subscription")
 async def my_subscription(current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await _subscription_payload(db, current_user["org_id"])
+
+
+# ─── Razorpay checkout / verify / webhook ─────────────────────
+
+class CheckoutBody(BaseModel):
+    plan_id: str
+
+
+class VerifyBody(BaseModel):
+    plan_id: str
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+async def _activate(db: AsyncSession, org_id: str, plan: SubscriptionPlan, *, provider: str, ref: Optional[str]):
+    now = datetime.now(timezone.utc)
+    days = 365 if plan.billing_period == "yearly" else 30
+    sub = (await db.execute(select(Subscription).where(Subscription.org_id == org_id))).scalar_one_or_none()
+    if sub:
+        sub.plan_id = plan.id
+        sub.status = SubscriptionStatus.ACTIVE
+        sub.current_period_start = now
+        sub.current_period_end = now + timedelta(days=days)
+        sub.provider = provider
+        sub.provider_subscription_id = ref
+    else:
+        db.add(Subscription(
+            org_id=org_id, plan_id=plan.id, status=SubscriptionStatus.ACTIVE,
+            current_period_start=now, current_period_end=now + timedelta(days=days),
+            provider=provider, provider_subscription_id=ref,
+        ))
+    await db.flush()
+
+
+async def _load_public_plan(db: AsyncSession, plan_id: str) -> SubscriptionPlan:
+    plan = (await db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id, SubscriptionPlan.is_active.is_(True))
+    )).scalar_one_or_none()
+    if not plan:
+        raise HTTPException(404, detail="Plan not found or inactive")
+    return plan
+
+
+@router.post("/checkout")
+async def checkout(body: CheckoutBody, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Start a subscription. Free plans activate immediately; paid plans return a Razorpay order."""
+    plan = await _load_public_plan(db, body.plan_id)
+    org_id = current_user["org_id"]
+
+    if plan.price_cents == 0:
+        await _activate(db, org_id, plan, provider="free", ref=None)
+        return {"free": True, "subscription": await _subscription_payload(db, org_id)}
+
+    provider = get_payment_provider()
+    if not getattr(provider, "enabled", False):
+        raise HTTPException(400, detail="Payments are not configured yet. Contact the platform admin.")
+    order = await provider.create_order(
+        amount_cents=plan.price_cents, currency=plan.currency,
+        notes={"org_id": org_id, "plan_id": plan.id},
+    )
+    return {"free": False, "plan_name": plan.name, "plan_id": plan.id, **order}
+
+
+@router.post("/verify")
+async def verify(body: VerifyBody, current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Verify a completed Razorpay payment and activate the org's subscription."""
+    provider = get_payment_provider()
+    ok = provider.verify_payment_signature(
+        order_id=body.razorpay_order_id, payment_id=body.razorpay_payment_id, signature=body.razorpay_signature,
+    )
+    if not ok:
+        raise HTTPException(400, detail="Payment verification failed")
+    plan = await _load_public_plan(db, body.plan_id)
+    org_id = current_user["org_id"]
+    await _activate(db, org_id, plan, provider="razorpay", ref=body.razorpay_payment_id)
+    await audit(db, action="subscription.purchase", actor=current_user, org_id=org_id,
+                target_type="subscription", target_id=body.razorpay_payment_id, meta={"plan_id": plan.id})
+    return await _subscription_payload(db, org_id)
+
+
+@router.post("/razorpay-webhook", status_code=200)
+async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    """Server-to-server backstop: activate on payment.captured using order notes."""
+    raw = await request.body()
+    sig = request.headers.get("x-razorpay-signature", "")
+    provider = get_payment_provider()
+    if not provider.verify_webhook(payload=raw, signature=sig):
+        raise HTTPException(400, detail="Invalid webhook signature")
+    try:
+        event = json.loads(raw)
+        if event.get("event") in ("payment.captured", "order.paid"):
+            entity = event.get("payload", {}).get("payment", {}).get("entity", {})
+            notes = entity.get("notes") or {}
+            if notes.get("org_id") and notes.get("plan_id"):
+                plan = (await db.execute(
+                    select(SubscriptionPlan).where(SubscriptionPlan.id == notes["plan_id"])
+                )).scalar_one_or_none()
+                if plan:
+                    await _activate(db, notes["org_id"], plan, provider="razorpay", ref=entity.get("id"))
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Razorpay webhook handling failed: %s", e)
+    return {"received": True}
 
 
 # ─── Helpers ───────────────────────────────────────────────────
