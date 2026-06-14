@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCandidates, useDashboardStats } from "@/hooks/useData";
 import { useAuth } from "@/lib/auth";
+import { UsageBanner } from "@/components/UsageBanner";
 
 const BADGE: Record<string, string> = {
   "Strong Hire": "bg-emerald-500/12 text-emerald-400",
@@ -77,6 +78,8 @@ export default function OrgDashboard() {
       </header>
 
       <div className="px-8 py-6 space-y-6">
+
+        <UsageBanner />
 
         {/* Metric Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
