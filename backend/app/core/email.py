@@ -193,3 +193,39 @@ def send_interview_invitation(
     except Exception as exc:
         logger.error("Failed to send interview invitation to %s: %s", to_email, exc, exc_info=True)
         return False
+
+
+def send_demo_lead(name: str, email: str, phone: str, message: str) -> bool:
+    """Notify the team that someone is exploring the demo. Returns True if sent."""
+    if not _smtp_configured():
+        return False
+    to_email = settings.FROM_EMAIL or settings.SMTP_USER
+    subject = f"VoxHire demo — {name} is exploring 👀"
+    html = f"""
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+      <h2 style="margin:0 0 12px;">New demo visitor</h2>
+      <p style="color:#444;line-height:1.6;">
+        <strong>Name:</strong> {name}<br/>
+        <strong>Email:</strong> {email or '—'}<br/>
+        <strong>Phone:</strong> {phone or '—'}
+      </p>
+      <p style="color:#444;line-height:1.6;"><strong>Feedback / feature wish:</strong><br/>{message or '—'}</p>
+    </div>
+    """
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.FROM_EMAIL
+    msg["To"] = to_email
+    msg.attach(MIMEText(f"{name} | {email} | {phone}\n\n{message}", "plain"))
+    msg.attach(MIMEText(html, "html"))
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
+        return True
+    except Exception as exc:
+        logger.error("Failed to send demo lead notification: %s", exc)
+        return False

@@ -606,3 +606,17 @@ class AuditLog(Base):
     ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+# ─── Demo leads (captured at the demo gate) ───────────────────
+
+class DemoLead(Base):
+    __tablename__ = "demo_leads"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)

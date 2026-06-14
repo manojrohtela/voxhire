@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
+import { DemoGate } from "@/components/DemoGate";
 
 interface OrgInfo {
   name: string;
@@ -33,6 +34,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
   const [org, setOrg]         = useState<OrgInfo | null>(null);
 
   // Detect org slug from subdomain or cookie, then fetch org details
@@ -271,7 +273,7 @@ export default function LoginPage() {
             </div>
             <button
               type="button"
-              onClick={tryDemo}
+              onClick={() => setDemoOpen(true)}
               disabled={loading}
               className="w-full h-11 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 border border-white/15 text-white hover:bg-white/5"
             >
@@ -309,6 +311,8 @@ export default function LoginPage() {
           <span className="text-gray-400 text-[11px] tracking-widest uppercase">Enterprise Secure</span>
         </div>
       </div>
+
+      <DemoGate open={demoOpen} onClose={() => setDemoOpen(false)} onEnter={tryDemo} />
     </div>
   );
 }
