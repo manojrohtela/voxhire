@@ -65,7 +65,7 @@ def upgrade() -> None:
         sa.column("max_interviews_per_month", sa.Integer), sa.column("max_users", sa.Integer),
         sa.column("features", sa.JSON), sa.column("is_active", sa.Boolean),
         sa.column("is_public", sa.Boolean), sa.column("sort_order", sa.Integer),
-        sa.column("created_at", sa.DateTime), sa.column("updated_at", sa.DateTime),
+        sa.column("created_at", sa.DateTime(timezone=True)), sa.column("updated_at", sa.DateTime(timezone=True)),
     )
     op.bulk_insert(plans, [
         {
