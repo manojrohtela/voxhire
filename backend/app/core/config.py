@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     VAPI_INTERVIEW_ASSISTANT_ID: str = "8e44dddb-97a5-4cc5-90f3-2ef130e39fcf"
     VAPI_INTERVIEW_WEBHOOK_SECRET: str = ""     # Set in Vapi dashboard → interview assistant webhook
 
+    # Billing — payment provider is pluggable; "" = none (manual super-admin assignment)
+    PAYMENT_PROVIDER: str = ""                   # "" | "razorpay" | "stripe"
+
     # SMTP (optional — if empty, invitation link is returned but no email is sent)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587

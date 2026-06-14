@@ -1,10 +1,11 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import resume, auth, candidates, interviews, admin, jobs, screening, voice_ws, interview_vapi
+from app.api.v1.endpoints import resume, auth, candidates, interviews, admin, jobs, screening, voice_ws, interview_vapi, billing
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+api_router.include_router(billing.router, prefix="/billing", tags=["Billing"])
 api_router.include_router(candidates.router, prefix="/candidates", tags=["Candidates"])
 api_router.include_router(interviews.router, prefix="/interviews", tags=["Interviews"])
 api_router.include_router(interview_vapi.router, prefix="/interviews", tags=["Interviews - Vapi"])

@@ -518,3 +518,70 @@ class ScreeningInvitation(Base):
     # Relationships
     candidate: Mapped["Candidate"] = relationship("Candidate", back_populates="screening_invitations")
     org: Mapped["Organization"] = relationship("Organization")
+
+
+# ─── Billing / Subscriptions ───────────────────────────────────
+# Additive, provider-agnostic. Plans are defined by super-admins; an org has at
+# most one Subscription. Usage (interviews this period) is computed on demand
+# from interview_sessions. Enforcement is SOFT (track + warn) — nothing blocks.
+
+class SubscriptionStatus(str, enum.Enum):
+    ACTIVE = "active"
+    TRIALING = "trialing"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+
+
+class SubscriptionPlan(Base):
+    __tablename__ = "subscription_plans"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    price_cents: Mapped[int] = mapped_column(Integer, default=0)           # in minor units
+    currency: Mapped[str] = mapped_column(String(3), default="INR")
+    billing_period: Mapped[str] = mapped_column(String(10), default="monthly")  # monthly | yearly
+
+    # Limits — NULL means unlimited
+    max_interviews_per_month: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    max_users: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    features: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # list[str] of feature flags
+
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)         # assignable
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)         # shown on self-serve upgrade page
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    subscriptions: Mapped[list["Subscription"]] = relationship("Subscription", back_populates="plan")
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    org_id: Mapped[str] = mapped_column(
+        String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    plan_id: Mapped[str] = mapped_column(String, ForeignKey("subscription_plans.id", ondelete="RESTRICT"), nullable=False)
+
+    status: Mapped[SubscriptionStatus] = mapped_column(
+        SAEnum(SubscriptionStatus, native_enum=False), default=SubscriptionStatus.ACTIVE
+    )
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    current_period_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Provider linkage — filled when a payment provider (Razorpay/Stripe) is wired.
+    provider: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    provider_customer_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    provider_subscription_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    org: Mapped["Organization"] = relationship("Organization")
+    plan: Mapped["SubscriptionPlan"] = relationship("SubscriptionPlan", back_populates="subscriptions")
