@@ -107,13 +107,11 @@ async def run_evaluation(
     resume_ctx = ""
     if resume_summary:
         resume_ctx += f"Resume Summary: {resume_summary}\n"
-    if parsed_profile:
+    if isinstance(parsed_profile, dict):
+        from app.core.profile import extract_candidate_skills
         exp = parsed_profile.get("total_experience_years") or parsed_profile.get("experience", {})
         edu = parsed_profile.get("education", [])
-        raw_skills = parsed_profile.get("skills", {})
-        candidate_skills: list[str] = []
-        for cat in ("technical", "languages", "frameworks", "tools"):
-            candidate_skills.extend(raw_skills.get(cat, []))
+        candidate_skills = extract_candidate_skills(parsed_profile, limit=20)
         if candidate_skills:
             resume_ctx += f"Candidate Skills on Resume: {', '.join(candidate_skills[:20])}\n"
         if exp:

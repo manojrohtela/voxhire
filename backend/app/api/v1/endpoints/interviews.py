@@ -326,12 +326,9 @@ async def join_interview(
     skills = skills_result.scalars().all()
     skills_to_assess = [s.skill for s in skills]
 
-    # Candidate's own skills from parsed_profile
-    candidate_skills: list[str] = []
-    if candidate and candidate.parsed_profile:
-        raw_skills = candidate.parsed_profile.get("skills", {})
-        for category in ("technical", "languages", "frameworks", "tools"):
-            candidate_skills.extend(raw_skills.get(category, []))
+    # Candidate's own skills from parsed_profile (shape-tolerant)
+    from app.core.profile import extract_candidate_skills
+    candidate_skills: list[str] = extract_candidate_skills(candidate.parsed_profile) if candidate else []
 
     return {
         "session_id": session.id,

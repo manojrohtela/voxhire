@@ -115,11 +115,8 @@ async def get_vapi_config(
             "summary": candidate.summary or "",
         }
         if candidate.parsed_profile:
-            raw_skills = candidate.parsed_profile.get("skills", {})
-            all_skills: list[str] = []
-            for cat in ("technical", "languages", "frameworks", "tools"):
-                all_skills.extend(raw_skills.get(cat, []))
-            candidate_summary["skills"] = all_skills[:20]
+            from app.core.profile import extract_candidate_skills
+            candidate_summary["skills"] = extract_candidate_skills(candidate.parsed_profile, limit=20)
 
     # HR-defined focus skills take priority; fall back to candidate resume skills
     focus_skills = session.focus_skills if session.focus_skills else skills
