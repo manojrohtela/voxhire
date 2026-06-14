@@ -20,6 +20,7 @@ from app.db.models import (
     Organization, User, InterviewSession,
 )
 from app.modules.auth.dependencies import get_current_user, require_super_admin
+from app.modules.audit.log import record as audit
 
 router = APIRouter()
 
@@ -80,29 +81,32 @@ async def list_all_plans(_: dict = Depends(require_super_admin), db: AsyncSessio
 
 
 @router.post("/admin/plans", status_code=201)
-async def create_plan(body: PlanBody, _: dict = Depends(require_super_admin), db: AsyncSession = Depends(get_db)):
+async def create_plan(body: PlanBody, admin: dict = Depends(require_super_admin), db: AsyncSession = Depends(get_db)):
     exists = (await db.execute(select(SubscriptionPlan).where(SubscriptionPlan.slug == body.slug))).scalar_one_or_none()
     if exists:
         raise HTTPException(409, detail="A plan with this slug already exists.")
     plan = SubscriptionPlan(**body.model_dump())
     db.add(plan)
     await db.flush()
+    await audit(db, action="plan.create", actor=admin, target_type="plan", target_id=plan.id, meta={"slug": plan.slug})
     return plan_to_dict(plan)
 
 
 @router.patch("/admin/plans/{plan_id}")
-async def update_plan(plan_id: str, body: PlanUpdate, _: dict = Depends(require_super_admin), db: AsyncSession = Depends(get_db)):
+async def update_plan(plan_id: str, body: PlanUpdate, admin: dict = Depends(require_super_admin), db: AsyncSession = Depends(get_db)):
     plan = (await db.execute(select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id))).scalar_one_or_none()
     if not plan:
         raise HTTPException(404, detail="Plan not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
+    changed = body.model_dump(exclude_unset=True)
+    for field, value in changed.items():
         setattr(plan, field, value)
     await db.flush()
+    await audit(db, action="plan.update", actor=admin, target_type="plan", target_id=plan.id, meta={"fields": list(changed.keys())})
     return plan_to_dict(plan)
 
 
 @router.delete("/admin/plans/{plan_id}")
-async def delete_plan(plan_id: str, _: dict = Depends(require_super_admin), db: AsyncSession = Depends(get_db)):
+async def delete_plan(plan_id: str, admin: dict = Depends(require_super_admin), db: AsyncSession = Depends(get_db)):
     in_use = (await db.execute(select(func.count()).select_from(Subscription).where(Subscription.plan_id == plan_id))).scalar()
     if in_use:
         raise HTTPException(409, detail="Plan is assigned to organizations. Deactivate it instead of deleting.")
@@ -110,6 +114,7 @@ async def delete_plan(plan_id: str, _: dict = Depends(require_super_admin), db: 
     if not plan:
         raise HTTPException(404, detail="Plan not found")
     await db.delete(plan)
+    await audit(db, action="plan.delete", actor=admin, target_type="plan", target_id=plan_id)
     return {"deleted": plan_id}
 
 
@@ -123,7 +128,7 @@ async def get_org_subscription(org_id: str, _: dict = Depends(require_super_admi
 @router.put("/admin/orgs/{org_id}/subscription")
 async def assign_org_subscription(
     org_id: str, body: AssignSubscriptionBody,
-    _: dict = Depends(require_super_admin), db: AsyncSession = Depends(get_db),
+    admin: dict = Depends(require_super_admin), db: AsyncSession = Depends(get_db),
 ):
     org = (await db.execute(select(Organization).where(Organization.id == org_id))).scalar_one_or_none()
     if not org:
@@ -146,6 +151,8 @@ async def assign_org_subscription(
         )
         db.add(sub)
     await db.flush()
+    await audit(db, action="subscription.assign", actor=admin, org_id=org_id,
+                target_type="subscription", target_id=sub.id, meta={"plan_id": body.plan_id, "status": body.status})
     return await _subscription_payload(db, org_id)
 
 

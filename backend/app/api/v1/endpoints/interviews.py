@@ -194,6 +194,10 @@ async def create_interview(
     db.add(session)
     await db.flush()
 
+    from app.modules.audit.log import record as audit
+    await audit(db, action="interview.schedule", actor=current_user, target_type="interview",
+                target_id=session.id, meta={"candidate_id": body.candidate_id, "scheduled_at": body.scheduled_at})
+
     # Email the interview invite to the candidate (best-effort; non-fatal).
     if candidate.email:
         org = (

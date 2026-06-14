@@ -311,6 +311,9 @@ async def delete_candidate(
     if not candidate:
         raise HTTPException(404, detail="Candidate not found")
 
+    from app.modules.audit.log import record as audit
+    await audit(db, action="candidate.delete", actor=current_user, target_type="candidate",
+                target_id=candidate_id, meta={"name": candidate.name, "email": candidate.email})
     await db.delete(candidate)
 
 

@@ -585,3 +585,24 @@ class Subscription(Base):
 
     org: Mapped["Organization"] = relationship("Organization")
     plan: Mapped["SubscriptionPlan"] = relationship("SubscriptionPlan", back_populates="subscriptions")
+
+
+# ─── Audit log (append-only) ───────────────────────────────────
+# Records sensitive actions for traceability/compliance. Writes are best-effort
+# and must never block the action they describe.
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    org_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)   # NULL = platform-level
+    actor_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    actor_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)     # snapshot
+
+    action: Mapped[str] = mapped_column(String(60), nullable=False)                    # e.g. "interview.schedule"
+    target_type: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    target_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    meta: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
