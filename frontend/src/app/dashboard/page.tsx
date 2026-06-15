@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCandidates, useDashboardStats } from "@/hooks/useData";
 import { useAuth } from "@/lib/auth";
 import { UsageBanner } from "@/components/UsageBanner";
+import { analyticsApi } from "@/lib/api-client";
 
 const BADGE: Record<string, string> = {
   "Strong Hire": "bg-emerald-500/12 text-emerald-400",
@@ -35,15 +36,21 @@ export default function OrgDashboard() {
   });
   const { stats, loading: statsLoading } = useDashboardStats();
 
-  const totalInterviewed = stats.ratingBreakdown.Strong + stats.ratingBreakdown.Medium + stats.ratingBreakdown.Weak;
+  // Real analytics from the backend (replaces estimated/derived stats).
+  const [analytics, setAnalytics] = useState<any>(null);
+  useEffect(() => { analyticsApi.overview().then(setAnalytics).catch(() => {}); }, []);
 
-  const funnelStages = [
-    { label: "Applied",     count: total,                  pct: 100 },
-    { label: "Screened",    count: Math.round(total * 0.5), pct: 50 },
-    { label: "Interviewed", count: totalInterviewed,        pct: total > 0 ? Math.round((totalInterviewed / total) * 100) : 0 },
-    { label: "Offered",     count: Math.round(totalInterviewed * 0.11), pct: total > 0 ? Math.round((totalInterviewed * 0.11 / total) * 100) : 0 },
-    { label: "Hired",       count: stats.strongCandidates, pct: total > 0 ? Math.round((stats.strongCandidates / total) * 100) : 0 },
-  ];
+  const f = analytics?.funnel;
+  const applied = f?.applied ?? total;
+  const pctOf = (n: number) => (applied > 0 ? Math.round((n / applied) * 100) : 0);
+  const funnelStages = f
+    ? [
+        { label: "Applied",     count: f.applied,     pct: 100 },
+        { label: "Screened",    count: f.screened,    pct: pctOf(f.screened) },
+        { label: "Interviewed", count: f.interviewed, pct: pctOf(f.interviewed) },
+        { label: "Shortlisted", count: f.shortlisted, pct: pctOf(f.shortlisted) },
+      ]
+    : [{ label: "Applied", count: total, pct: 100 }];
 
   const upcomingCandidates = candidates.filter((c) => c.interview_sessions?.[0]?.scheduled_at).slice(0, 3);
   const recentActivity = [...candidates].sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()).slice(0, 5);
@@ -85,27 +92,27 @@ export default function OrgDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             {
-              label: "Total Candidates", value: statsLoading ? "—" : stats.totalCandidates,
-              sub: "+12% this month", subClass: "text-emerald-400",
+              label: "Total Candidates", value: analytics ? analytics.candidates_total : "—",
+              sub: analytics ? `${analytics.interviews.scheduled} interview${analytics.interviews.scheduled === 1 ? "" : "s"} upcoming` : "", subClass: "text-foreground-3",
               icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>,
               iconWrap: "bg-primary/20 text-primary",
             },
             {
-              label: "Active Interviews", value: statsLoading ? "—" : stats.interviewsDone,
-              sub: `${Math.min(stats.interviewsDone, 8)} happening today`, subClass: "text-foreground-3",
+              label: "Interviews Completed", value: analytics ? analytics.interviews.completed : "—",
+              sub: analytics ? `${analytics.interviews.total} total conducted` : "", subClass: "text-foreground-3",
               icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>,
               iconWrap: "bg-emerald-500/15 text-emerald-400",
             },
             {
-              label: "Pending Reviews", value: statsLoading ? "—" : stats.pendingSchedule,
-              sub: `${Math.min(stats.pendingSchedule, 1)} 24h high priority`, subClass: "text-red-400",
-              icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>,
-              iconWrap: "bg-red-500/12 text-red-400",
+              label: "Completion Rate", value: analytics ? `${analytics.interviews.completion_rate}%` : "—",
+              sub: "of interviews finished", subClass: "text-foreground-3",
+              icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>,
+              iconWrap: "bg-blue-500/12 text-blue-400",
             },
             {
-              label: "Shortlisted", value: statsLoading ? "—" : stats.strongCandidates,
-              sub: "Ready for offer stage", subClass: "text-amber-400",
-              icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>,
+              label: "Recruiter Hours Saved", value: analytics ? analytics.hours_saved : "—",
+              sub: "vs. manual screening", subClass: "text-amber-400",
+              icon: <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>,
               iconWrap: "bg-amber-500/12 text-amber-400",
             },
           ].map((m) => (

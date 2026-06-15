@@ -104,6 +104,11 @@ export const candidatesApi = {
     request(`/api/v1/candidates/${id}/skills`, { method: "POST", body: JSON.stringify({ skills }) }),
 };
 
+// ─── Analytics ────────────────────────────────────────────────
+export const analyticsApi = {
+  overview: () => request<any>("/api/v1/analytics/overview"),
+};
+
 // ─── Interviews ───────────────────────────────────────────────
 export const interviewsApi = {
   list: (status?: string) => {
