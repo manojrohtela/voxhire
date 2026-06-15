@@ -140,7 +140,7 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
 
   const {
     isMediaReady, mediaError, attachVideo,
-    initMedia, beginInterview, vapiError,
+    initMedia, beginInterview, vapiError, reconnect,
     transcript, isListening, isCandidateThinking, isAIThinking, isAISpeaking,
   } = useVapiInterview({
     sessionId:  session.sessionId,
@@ -588,8 +588,11 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
               </div>
 
               {mediaError && (
-                <div className="px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
-                  {mediaError}
+                <div className="px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center justify-between gap-3">
+                  <span>{mediaError}</span>
+                  <button onClick={() => initMedia()} className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 text-xs font-medium transition-colors">
+                    Try again
+                  </button>
                 </div>
               )}
             </div>
@@ -896,7 +899,10 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
                       </div>
                       <p className="text-red-400 text-sm font-medium mb-1">Couldn&apos;t connect the AI interviewer</p>
                       <p className="text-[#666] text-xs">{vapiError}</p>
-                      <p className="text-[#444] text-xs mt-2">Please refresh and try again, or contact the recruiter.</p>
+                      <button onClick={() => reconnect()} className="mt-3 px-4 py-2 rounded-lg bg-[#6c63ff] hover:bg-[#5a52e0] text-white text-xs font-semibold transition-colors">
+                        Reconnect
+                      </button>
+                      <p className="text-[#444] text-xs mt-2">Still stuck? Refresh, or contact the recruiter.</p>
                     </>
                   ) : (
                     <>

@@ -38,6 +38,7 @@ interface UseVapiInterviewReturn {
   initMedia: () => Promise<void>;
   beginInterview: () => Promise<void>;
   endInterview: () => void;
+  reconnect: () => void;
 }
 
 export function useVapiInterview({
@@ -69,8 +70,9 @@ export function useVapiInterview({
     }
   }, []);
 
-  // Request mic + camera
+  // Request mic + camera (retry-able; classifies the failure for a clear message)
   const initMedia = useCallback(async () => {
+    setMediaError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -85,8 +87,17 @@ export function useVapiInterview({
         videoRef.current.srcObject = stream;
       }
       setIsMediaReady(true);
-    } catch (err) {
-      setMediaError("Could not access camera or microphone. Please allow permissions and try again.");
+    } catch (err: any) {
+      const name = err?.name || "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setMediaError("Camera/microphone access is blocked. Click the camera icon in your browser's address bar, choose Allow, then tap Try again.");
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        setMediaError("No camera or microphone was found. Please connect one and tap Try again.");
+      } else if (name === "NotReadableError" || name === "TrackStartError") {
+        setMediaError("Your camera/mic is in use by another app (Zoom, Meet, etc.). Close it and tap Try again.");
+      } else {
+        setMediaError("Couldn't access your camera or microphone. Check permissions and tap Try again.");
+      }
     }
   }, []);
 
@@ -166,6 +177,8 @@ export function useVapiInterview({
         const msg = err?.message || err?.error?.message || "Voice connection error";
         setVapiError(msg);
         setTurnPhase("IDLE");
+        // Allow the candidate to retry the connection.
+        callStartedRef.current = false;
       });
 
       // Start the call with dynamic assistant overrides
@@ -183,6 +196,12 @@ export function useVapiInterview({
     vapiRef.current?.stop();
     streamRef.current?.getTracks().forEach((t) => t.stop());
   }, []);
+
+  // Retry the voice connection after an error/drop.
+  const reconnect = useCallback(() => {
+    setVapiError(null);
+    beginInterview();
+  }, [beginInterview]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -206,5 +225,6 @@ export function useVapiInterview({
     initMedia,
     beginInterview,
     endInterview,
+    reconnect,
   };
 }
