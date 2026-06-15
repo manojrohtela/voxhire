@@ -41,6 +41,23 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _build_first_message(candidate_name: str, job_title: str, org_name: str = "") -> str:
+    """
+    Personalized opening line the AI speaks first, so the candidate immediately
+    knows the interview has started and audio is working.
+    """
+    first_name = (candidate_name or "there").strip().split(" ")[0] or "there"
+    where = f" at {org_name}" if org_name else ""
+    role = job_title or "this role"
+    return (
+        f"Hi {first_name}, welcome, and thanks for joining. "
+        f"I'm your AI interviewer for the {role} position{where}. "
+        f"This will be a relaxed conversation about your experience and skills — "
+        f"there are no trick questions, so just speak naturally and take your time. "
+        f"To get us started, could you tell me a little about yourself and your background?"
+    )
+
+
 # ── GET vapi-config (candidate calls this when interview page loads) ─────────
 
 @router.get("/{session_id}/vapi-config")
@@ -72,6 +89,8 @@ async def get_vapi_config(
                 "candidateSummary": {},
             },
             "metadata": {"sessionId": "test", "linkToken": "test", "test": True},
+            "first_message": _build_first_message("Test Candidate", "Senior Python Engineer", "VoxHire Dev"),
+            "first_message_mode": "assistant-speaks-first",
         }
 
     result = await db.execute(
@@ -147,6 +166,12 @@ async def get_vapi_config(
         "vapi_assistant_id": settings.VAPI_INTERVIEW_ASSISTANT_ID,
         "variable_values": variable_values,
         "metadata": metadata,
+        "first_message": _build_first_message(
+            variable_values["candidateName"],
+            variable_values["jobTitle"],
+            variable_values["orgName"],
+        ),
+        "first_message_mode": "assistant-speaks-first",
     }
 
 

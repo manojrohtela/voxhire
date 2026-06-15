@@ -181,11 +181,18 @@ export function useVapiInterview({
         callStartedRef.current = false;
       });
 
-      // Start the call with dynamic assistant overrides
-      await vapi.start(config.vapi_assistant_id, {
+      // Start the call with dynamic assistant overrides.
+      // firstMessage + assistant-speaks-first guarantees the AI greets the
+      // candidate immediately, so they know audio is working.
+      const overrides: Record<string, any> = {
         variableValues: config.variable_values,
         metadata: config.metadata,
-      });
+      };
+      if (config.first_message) {
+        overrides.firstMessage = config.first_message;
+        overrides.firstMessageMode = config.first_message_mode || "assistant-speaks-first";
+      }
+      await vapi.start(config.vapi_assistant_id, overrides);
     } catch (err: any) {
       setVapiError(err?.message || "Failed to start interview");
       callStartedRef.current = false;
