@@ -526,8 +526,21 @@ async def reevaluate_interview(
     if not session:
         raise HTTPException(404, detail="Interview not found")
 
+    # Prefer the Vapi end-of-call transcript; if the webhook never fired, fall
+    # back to the transcript captured live by the interview page (transcript_entries).
     if not session.vapi_transcript:
-        raise HTTPException(400, detail="No transcript available to evaluate")
+        rows = (await db.execute(
+            select(TranscriptEntry)
+            .where(TranscriptEntry.session_id == session_id)
+            .order_by(TranscriptEntry.sequence)
+        )).scalars().all()
+        rebuilt = [
+            {"role": (e.speaker.value if hasattr(e.speaker, "value") else str(e.speaker)), "text": e.text}
+            for e in rows if e.text
+        ]
+        if not rebuilt:
+            raise HTTPException(400, detail="No transcript available to evaluate")
+        session.vapi_transcript = rebuilt
 
     # Clear any prior skill rows so a retry doesn't duplicate them.
     await db.execute(
