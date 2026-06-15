@@ -8,11 +8,13 @@ import { apiWithAuth } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// Keyed on the AI's HiringDecision so the candidate list matches the report/AI rating.
 const RATING_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  Strong:  { label: "Strong",  bg: "rgba(34,197,94,0.12)",   color: "#4ade80", border: "rgba(74,222,128,0.25)" },
-  Medium:  { label: "Medium",  bg: "rgba(234,179,8,0.12)",   color: "#facc15", border: "rgba(250,204,21,0.25)" },
-  Weak:    { label: "Weak",    bg: "rgba(239,68,68,0.12)",   color: "#f87171", border: "rgba(248,113,113,0.25)" },
-  Pending: { label: "Pending", bg: "rgba(100,100,120,0.15)", color: "#9ca3af", border: "rgba(156,163,175,0.2)" },
+  "Strong Hire": { label: "Strong Hire", bg: "rgba(16,185,129,0.12)", color: "#34d399", border: "rgba(52,211,153,0.3)" },
+  "Hire":        { label: "Hire",        bg: "rgba(59,130,246,0.12)", color: "#60a5fa", border: "rgba(96,165,250,0.3)" },
+  "Consider":    { label: "Consider",    bg: "rgba(234,179,8,0.12)",  color: "#facc15", border: "rgba(250,204,21,0.3)" },
+  "Reject":      { label: "Reject",      bg: "rgba(239,68,68,0.12)",  color: "#f87171", border: "rgba(248,113,113,0.3)" },
+  "Pending":     { label: "Pending",     bg: "rgba(100,100,120,0.15)", color: "#9ca3af", border: "rgba(156,163,175,0.2)" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -24,7 +26,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   rejected:             { label: "Rejected",      color: "#f87171" },
 };
 
-const RATING_FILTERS = ["All", "Strong", "Medium", "Weak", "Pending"];
+const RATING_FILTERS = ["All", "Strong Hire", "Hire", "Consider", "Reject", "Pending"];
 const PAGE_SIZE = 10;
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -944,9 +946,9 @@ export default function CandidatesPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Total Candidates", value: total },
-            { label: "Strong",   value: candidates.filter(c => c.overall_rating === "Strong").length },
-            { label: "Medium",   value: candidates.filter(c => c.overall_rating === "Medium").length },
-            { label: "Pending",  value: candidates.filter(c => !c.overall_rating || c.overall_rating === "Pending").length },
+            { label: "Strong Hire", value: candidates.filter(c => c.overall_rating === "Strong Hire").length },
+            { label: "Hire",        value: candidates.filter(c => c.overall_rating === "Hire").length },
+            { label: "Pending",     value: candidates.filter(c => !c.overall_rating || c.overall_rating === "Pending").length },
           ].map(s => (
             <div key={s.label} className="rounded-xl p-5" style={{ background: "#1a1825", border: "1px solid rgba(255,255,255,0.06)" }}>
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">{s.label}</p>
