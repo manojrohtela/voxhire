@@ -41,6 +41,97 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+# Provider/model the interview assistant runs on (matches the Vapi dashboard
+# assistant). Overriding model.messages lets us drive the interview content
+# entirely from our app instead of a hardcoded dashboard prompt.
+INTERVIEW_MODEL_PROVIDER = "openai"
+INTERVIEW_MODEL_NAME = "gpt-4.1"
+
+
+def _build_system_prompt(
+    *,
+    candidate_name: str,
+    job_title: str,
+    level: str,
+    skills: list[str],
+    interview_type: str = "Technical",
+    candidate_summary: Optional[dict] = None,
+) -> str:
+    """
+    Build the interviewer system prompt dynamically from the actual role, level
+    and skills, so the interview adapts to each candidate instead of using a
+    fixed stack baked into the Vapi dashboard.
+    """
+    skill_lines = "\n".join(f"* {s}" for s in skills) if skills else "* General skills relevant to the role"
+    skills_inline = ", ".join(skills) if skills else "the core skills for this role"
+
+    summary_ctx = ""
+    if candidate_summary:
+        exp = candidate_summary.get("totalExperience")
+        summ = candidate_summary.get("summary")
+        if exp:
+            summary_ctx += f"\nCandidate experience: ~{exp} years."
+        if summ:
+            summary_ctx += f"\nResume summary: {str(summ)[:600]}"
+
+    return f"""You are a professional {interview_type.lower()} interviewer conducting a live voice interview for the role of {job_title}.
+
+Interview level: {level}
+Candidate name: {candidate_name}
+
+Skills and topics to assess (focus the interview on THESE — do not default to any other tech stack):
+{skill_lines}
+{summary_ctx}
+
+Your objective is to evaluate the candidate's practical knowledge, problem-solving ability, and real-world experience in {skills_inline}.
+
+Instructions:
+* Greet the candidate by name, then ask for a brief introduction.
+* Ask only ONE question at a time and wait for the response before proceeding.
+* Keep it conversational and natural — not a questionnaire.
+* Focus your questions on the listed skills/topics above. Do NOT introduce unrelated technologies the candidate hasn't mentioned and that aren't listed.
+* Ask practical, scenario-based questions over textbook definitions.
+* Ask follow-up questions based on the candidate's actual answers.
+* Gradually increase difficulty if the candidate does well; ease off if they struggle.
+* Challenge assumptions with "why" and "how" questions.
+* Do not reveal scores, evaluations, or interview criteria.
+
+Interview flow:
+1. Introduction
+2. Recent project / experience discussion
+3. Deep-dive questions on the listed skills, one topic at a time
+4. A scenario / problem-solving question
+5. Wrap-up and invite the candidate's questions
+
+Make it feel like a real interview at a strong product company. Use the candidate's answers to drive the conversation. Begin now by greeting {candidate_name} and asking for a brief introduction."""
+
+
+def _model_override(
+    *,
+    candidate_name: str,
+    job_title: str,
+    level: str,
+    skills: list[str],
+    interview_type: str = "Technical",
+    candidate_summary: Optional[dict] = None,
+) -> dict:
+    return {
+        "provider": INTERVIEW_MODEL_PROVIDER,
+        "model": INTERVIEW_MODEL_NAME,
+        "messages": [{
+            "role": "system",
+            "content": _build_system_prompt(
+                candidate_name=candidate_name,
+                job_title=job_title,
+                level=level,
+                skills=skills,
+                interview_type=interview_type,
+                candidate_summary=candidate_summary,
+            ),
+        }],
+    }
+
+
 def _build_first_message(candidate_name: str, job_title: str, org_name: str = "") -> str:
     """
     Personalized opening line the AI speaks first, so the candidate immediately
@@ -102,6 +193,13 @@ async def get_vapi_config(
             "metadata": {"sessionId": "test", "linkToken": "test", "test": True},
             "first_message": _build_first_message(cand_name, role, "VoxHire Dev"),
             "first_message_mode": "assistant-speaks-first",
+            "model_override": _model_override(
+                candidate_name=cand_name,
+                job_title=role,
+                level=_map_difficulty_to_level(diff),
+                skills=skill_list,
+                interview_type=itype,
+            ),
         }
 
     result = await db.execute(
@@ -183,6 +281,14 @@ async def get_vapi_config(
             variable_values["orgName"],
         ),
         "first_message_mode": "assistant-speaks-first",
+        "model_override": _model_override(
+            candidate_name=variable_values["candidateName"],
+            job_title=variable_values["jobTitle"],
+            level=variable_values["experienceLevel"],
+            skills=focus_skills,
+            interview_type=variable_values["interviewType"],
+            candidate_summary=candidate_summary,
+        ),
     }
 
 

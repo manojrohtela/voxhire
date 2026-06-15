@@ -197,6 +197,11 @@ export function useVapiInterview({
         overrides.firstMessage = config.first_message;
         overrides.firstMessageMode = config.first_message_mode || "assistant-speaks-first";
       }
+      // Drive the interview content (role, level, skills) from our app instead
+      // of the assistant's hardcoded dashboard prompt.
+      if (config.model_override) {
+        overrides.model = config.model_override;
+      }
       await vapi.start(config.vapi_assistant_id, overrides);
     } catch (err: any) {
       setVapiError(err?.message || "Failed to start interview");
