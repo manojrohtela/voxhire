@@ -63,6 +63,11 @@ def _build_first_message(candidate_name: str, job_title: str, org_name: str = ""
 @router.get("/{session_id}/vapi-config")
 async def get_vapi_config(
     session_id: str,
+    name: Optional[str] = None,
+    job_title: Optional[str] = None,
+    skills: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    interview_type: Optional[str] = None,
     x_interview_token: Optional[str] = Header(default=None, alias="X-Interview-Token"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -70,26 +75,32 @@ async def get_vapi_config(
     Returns Vapi Web SDK config for this interview session.
     Auth: X-Interview-Token header (same as transcript/violations endpoints).
     """
-    # Dev test harness — /interview/test launches the real Vapi flow without a DB session.
+    # Dev test harness — /interview/test launches the real Vapi flow without a DB
+    # session. Accepts optional query params so a tester can pick their own name,
+    # role, tech stack and level.
     if session_id == "test":
-        skills = ["Python", "FastAPI", "System Design", "PostgreSQL"]
+        cand_name = (name or "Test Candidate").strip() or "Test Candidate"
+        role = (job_title or "Senior Python Engineer").strip() or "Senior Python Engineer"
+        skill_list = [s.strip() for s in (skills or "Python,FastAPI,System Design,PostgreSQL").split(",") if s.strip()]
+        diff = difficulty if difficulty in ("Easy", "Medium", "Hard") else "Medium"
+        itype = (interview_type or "Technical").strip() or "Technical"
         return {
             "vapi_public_key": settings.VAPI_PUBLIC_KEY,
             "vapi_assistant_id": settings.VAPI_INTERVIEW_ASSISTANT_ID,
             "variable_values": {
-                "jobTitle": "Senior Python Engineer",
-                "candidateName": "Test Candidate",
+                "jobTitle": role,
+                "candidateName": cand_name,
                 "orgName": "VoxHire Dev",
-                "experienceLevel": "Mid-Level",
-                "difficulty": "Medium",
-                "requiredSkills": skills,
-                "focusAreas": skills,
+                "experienceLevel": _map_difficulty_to_level(diff),
+                "difficulty": diff,
+                "requiredSkills": skill_list,
+                "focusAreas": skill_list,
                 "durationMinutes": 10,
-                "interviewType": "Technical",
+                "interviewType": itype,
                 "candidateSummary": {},
             },
             "metadata": {"sessionId": "test", "linkToken": "test", "test": True},
-            "first_message": _build_first_message("Test Candidate", "Senior Python Engineer", "VoxHire Dev"),
+            "first_message": _build_first_message(cand_name, role, "VoxHire Dev"),
             "first_message_mode": "assistant-speaks-first",
         }
 

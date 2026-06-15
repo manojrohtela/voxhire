@@ -22,6 +22,9 @@ interface UseVapiInterviewOptions {
   sessionId: string;
   linkToken: string;
   onComplete?: () => void;
+  // Extra query params appended to the vapi-config request (used by the test
+  // harness so a tester can pick their own name / role / stack / level).
+  configParams?: Record<string, string>;
 }
 
 interface UseVapiInterviewReturn {
@@ -45,6 +48,7 @@ export function useVapiInterview({
   sessionId,
   linkToken,
   onComplete,
+  configParams,
 }: UseVapiInterviewOptions): UseVapiInterviewReturn {
   const vapiRef = useRef<Vapi | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -103,12 +107,13 @@ export function useVapiInterview({
 
   // Fetch Vapi config from backend
   const fetchVapiConfig = useCallback(async () => {
-    const res = await fetch(`${API_URL}/api/v1/interviews/${sessionId}/vapi-config`, {
+    const qs = configParams ? `?${new URLSearchParams(configParams).toString()}` : "";
+    const res = await fetch(`${API_URL}/api/v1/interviews/${sessionId}/vapi-config${qs}`, {
       headers: { "X-Interview-Token": linkToken },
     });
     if (!res.ok) throw new Error("Failed to load interview config");
     return res.json();
-  }, [sessionId, linkToken]);
+  }, [sessionId, linkToken, configParams]);
 
   // Mark session as started via existing REST endpoint
   const markStarted = useCallback(async () => {
