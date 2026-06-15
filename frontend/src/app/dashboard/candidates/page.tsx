@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { candidatesApi } from "@/lib/api-client";
+import { flattenSkills } from "@/lib/skills";
 import { apiWithAuth } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -1009,7 +1010,7 @@ export default function CandidatesPage() {
                     </tr>
                   ) : candidates.map((c, idx) => {
                     const rc = RATING_CONFIG[c.overall_rating] ?? RATING_CONFIG.Pending;
-                    const skills: string[] = c.parsed_profile?.skills ?? [];
+                    const skills: string[] = flattenSkills(c.parsed_profile?.skills);
                     const jobCount = c.job_count ?? 0;
                     return (
                       <tr key={c.id}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { writeDemoVisitor } from "@/lib/demoVisitor";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -20,7 +21,6 @@ export function DemoGate({ open, onClose, onEnter }: Props) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const firstName = name.trim().split(/\s+/)[0];
@@ -33,9 +33,11 @@ export function DemoGate({ open, onClose, onEnter }: Props) {
       await fetch(`${API_URL}/api/v1/demo/lead`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone.trim(), message: message.trim() }),
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone.trim() }),
       });
     } catch { /* ignore */ }
+    // Remember this visitor so we don't gate them again on return.
+    writeDemoVisitor({ name: name.trim(), email: email.trim(), phone: phone.trim() });
     await onEnter();
   };
 
@@ -95,8 +97,8 @@ export function DemoGate({ open, onClose, onEnter }: Props) {
                 ✋ Hey, who&apos;s snooping? <span className="inline-block">👀</span>
               </h2>
               <p className="sketch-hand text-[#333] text-[15px] mt-2 leading-relaxed">
-                The agents are curious too! Scribble your name so we can say hi —
-                and tell us the one feature you wish VoxHire had.
+                The agents are curious too! Scribble your name so we can say hi,
+                then go explore — poke around as much as you like.
               </p>
 
               {/* live greeting */}
@@ -115,10 +117,10 @@ export function DemoGate({ open, onClose, onEnter }: Props) {
                   value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email (optional)" />
                 <input className="sketch-input w-full py-2 text-[#1a1a1a] text-lg" placeholder="phone (optional, only if you like calls)"
                   value={phone} onChange={(e) => setPhone(e.target.value)} aria-label="Phone (optional)" />
-                <textarea className="sketch-input w-full py-2 text-[#1a1a1a] text-base resize-none" rows={2}
-                  placeholder="✨ a feature you'd love? any feedback? (optional)"
-                  value={message} onChange={(e) => setMessage(e.target.value)} aria-label="Feedback (optional)" />
               </div>
+              <p className="sketch-hand text-[#777] text-sm mt-3">
+                💡 Got feedback? There&apos;s a button inside once you&apos;ve had a look around.
+              </p>
 
               <motion.button
                 whileHover={name.trim() ? { scale: 1.03, rotate: 0.5 } : undefined}

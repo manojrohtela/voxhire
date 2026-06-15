@@ -798,6 +798,20 @@ async def get_invite_info(
     Public endpoint — candidate (or anyone with the link) calls this to load
     the screening page context: candidate name, org name, job title.
     """
+    # Dev / demo test harness — /screening/test exercises the real Vapi screening
+    # flow with no DB invitation, mirroring /interview/test.
+    if token == "test":
+        return {
+            "is_expired": False,
+            "already_completed": False,
+            "candidate_name": "Test Candidate",
+            "candidate_email": "test@voxhire.ai",
+            "org_name": "VoxHire Dev",
+            "org_logo_url": None,
+            "job_title": "Software Engineer",
+            "expires_at": (_utcnow() + timedelta(days=1)).isoformat(),
+        }
+
     result = await db.execute(
         select(ScreeningInvitation).where(ScreeningInvitation.token == token)
     )
@@ -849,6 +863,15 @@ async def start_invite_screening(
     Validates the token, marks invitation as started, returns Vapi config
     so the browser can launch the Vapi Web SDK.
     """
+    # Test harness — return the screening assistant config without DB writes.
+    if token == "test":
+        return {
+            "screening_call_id": "test",
+            "vapi_public_key": settings.VAPI_PUBLIC_KEY,
+            "vapi_assistant_id": settings.VAPI_ASSISTANT_ID,
+            "metadata": {"screeningCallId": "test", "test": True},
+        }
+
     result = await db.execute(
         select(ScreeningInvitation).where(ScreeningInvitation.token == token)
     )

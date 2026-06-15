@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { DemoGate } from "@/components/DemoGate";
+import { hasDemoVisitor, readDemoVisitor } from "@/lib/demoVisitor";
 
 interface OrgInfo {
   name: string;
@@ -35,7 +36,11 @@ export default function LoginPage() {
   const [error, setError]     = useState("");
   const [showPass, setShowPass] = useState(false);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [returningName, setReturningName] = useState<string | null>(null);
   const [org, setOrg]         = useState<OrgInfo | null>(null);
+
+  // Recognise a returning demo visitor (localStorage) so we greet them and skip the gate.
+  useEffect(() => { setReturningName(readDemoVisitor()?.name?.split(/\s+/)[0] ?? null); }, []);
 
   // Detect org slug from subdomain or cookie, then fetch org details
   useEffect(() => {
@@ -273,11 +278,11 @@ export default function LoginPage() {
             </div>
             <button
               type="button"
-              onClick={() => setDemoOpen(true)}
+              onClick={() => { if (hasDemoVisitor()) { tryDemo(); } else { setDemoOpen(true); } }}
               disabled={loading}
               className="w-full h-11 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 border border-white/15 text-white hover:bg-white/5"
             >
-              🚀 Explore the live demo — no signup
+              {returningName ? `🚀 Welcome back, ${returningName} — enter the demo` : "🚀 Explore the live demo — no signup"}
             </button>
             <p className="text-center text-gray-500 text-xs mt-2">A sample organization with candidates, interviews & reports.</p>
           </div>

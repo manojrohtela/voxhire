@@ -285,7 +285,22 @@ async def list_interviews(
     query = query.order_by(InterviewSession.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     sessions = result.scalars().all()
-    return [session_to_dict(s) for s in sessions]
+
+    # Attach candidate names in one batched query (for the Interviews/Reports lists).
+    cand_ids = {s.candidate_id for s in sessions}
+    names: dict[str, str] = {}
+    if cand_ids:
+        rows = (await db.execute(
+            select(Candidate.id, Candidate.name).where(Candidate.id.in_(cand_ids))
+        )).all()
+        names = {cid: cname for cid, cname in rows}
+
+    out = []
+    for s in sessions:
+        d = session_to_dict(s)
+        d["candidate_name"] = names.get(s.candidate_id)
+        out.append(d)
+    return out
 
 
 @router.get("/join/{link_token}")
