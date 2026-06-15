@@ -58,6 +58,7 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
   const [phase, setPhase]                 = useState<InterviewPhase>("intro");
   const [session, setSession]             = useState<SessionInfo>(DEFAULT_SESSION);
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [sessionError, setSessionError]   = useState(false);
   const [countdown, setCountdown]         = useState<string>("");
   const [activeWarning, setActiveWarning]   = useState<string | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -86,8 +87,9 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
           aiPersonality:   data?.ai_personality ?? "Neutral",
           scheduledAt:     data?.scheduled_at ?? null,
         });
+        setSessionError(false);
       })
-      .catch(() => {})
+      .catch(() => setSessionError(true))
       .finally(() => setSessionLoading(false));
   }, [linkToken]);
 
@@ -200,6 +202,32 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
     await requestFullscreen();
     setActiveWarning(null);
   }, [requestFullscreen]);
+
+  // ─── Couldn't load the interview ─────────────────────────────────
+  if (sessionError && phase !== "active" && phase !== "completed") {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
+        <div className="w-full max-w-md text-center">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-white text-2xl font-bold mb-2">We couldn&apos;t load your interview</h1>
+          <p className="text-[#888] text-sm mb-6">
+            This link may be invalid or expired, or there was a temporary connection issue.
+            Please try again, or contact the recruiter who sent your invite.
+          </p>
+          <button
+            onClick={() => { setSessionError(false); setSessionLoading(true); window.location.reload(); }}
+            className="px-6 py-2.5 bg-[#6c63ff] hover:bg-[#5a52e0] text-white font-semibold rounded-xl text-sm transition-colors"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ─── Expired (joined too late) ───────────────────────────────────
   if (phase === "expired") {

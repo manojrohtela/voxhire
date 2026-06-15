@@ -9,6 +9,16 @@ from app.core.config import settings
 from app.core.ratelimit import limiter
 from app.db.database import engine
 
+# Error monitoring — only active when SENTRY_DSN is set.
+if settings.SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=0.1,
+        environment=settings.APP_ENV,
+        send_default_pii=False,
+    )
+
 app = FastAPI(
     title="VoxHire API",
     description="AI voice interview platform",

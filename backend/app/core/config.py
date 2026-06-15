@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # Durable job queue (Arq). Empty = run jobs in-process (no durability).
     REDIS_URL: str = ""                          # e.g. rediss://default:****@xxx.upstash.io:6379
 
+    # Error monitoring (Sentry). Empty = disabled.
+    SENTRY_DSN: str = ""
+
     # SMTP (optional — if empty, invitation link is returned but no email is sent)
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587

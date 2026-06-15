@@ -22,3 +22,4 @@ arq==0.25.0
 slowapi==0.1.9
 razorpay==1.4.2
 setuptools<81  # razorpay SDK still imports pkg_resources
+sentry-sdk[fastapi]==2.20.0  # only imported when SENTRY_DSN is set
