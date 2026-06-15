@@ -182,6 +182,19 @@ export const interviewsApi = {
     }).then((r) => (r.ok ? r.json() : Promise.reject(r))),
 
   join: (linkToken: string) => request<any>(`/api/v1/interviews/join/${linkToken}`),
+
+  // ── Public report sharing ──
+  createShareLink: (id: string) =>
+    request<{ share_token: string; share_url: string }>(`/api/v1/interviews/${id}/share`, { method: "POST" }),
+
+  revokeShareLink: (id: string) =>
+    request(`/api/v1/interviews/${id}/share`, { method: "DELETE" }),
+
+  // Public, no-auth fetch of a shared report
+  getSharedReport: (shareToken: string) =>
+    fetch(`${API_URL}/api/v1/interviews/shared/${shareToken}`, {
+      headers: { "Content-Type": "application/json" },
+    }).then((r) => (r.ok ? r.json() : Promise.reject(r))),
 };
 
 // ─── Job Descriptions ─────────────────────────────────────────

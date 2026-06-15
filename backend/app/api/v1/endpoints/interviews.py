@@ -22,7 +22,7 @@ from typing import Optional
 
 from app.db.database import get_db
 from app.db.models import (
-    InterviewSession, Candidate, CandidateSkill, Organization,
+    InterviewSession, Candidate, CandidateSkill, Organization, JobDescription,
     SkillEvaluation, TranscriptEntry, AntiCheatViolation,
     InterviewStatus, EvaluationRating, HiringDecision, TranscriptSpeaker, ViolationType
 )
@@ -90,6 +90,7 @@ def session_to_dict(s: InterviewSession, include_candidate: bool = False) -> dic
         "duration_minutes": s.duration_minutes,
         "interview_link": s.interview_link,
         "link_token": s.link_token,
+        "share_token": s.share_token,
         "started_at": s.started_at.isoformat() if s.started_at else None,
         "ended_at": s.ended_at.isoformat() if s.ended_at else None,
         "actual_duration_minutes": s.actual_duration_minutes,
@@ -403,6 +404,21 @@ async def get_interview(
 
     data = session_to_dict(session)
 
+    # Candidate name + job title for the report header
+    candidate = (await db.execute(
+        select(Candidate).where(Candidate.id == session.candidate_id)
+    )).scalar_one_or_none()
+    data["candidate_name"] = candidate.name if candidate else None
+    job_title = session.custom_job_title
+    if not job_title and session.job_id:
+        job = (await db.execute(
+            select(JobDescription).where(JobDescription.id == session.job_id)
+        )).scalar_one_or_none()
+        job_title = job.title if job else None
+    if not job_title and candidate:
+        job_title = candidate.applied_role
+    data["job_title"] = job_title
+
     # Skill evaluations
     evals_result = await db.execute(
         select(SkillEvaluation).where(SkillEvaluation.session_id == session_id)
@@ -435,6 +451,128 @@ async def get_interview(
     ]
 
     return data
+
+
+# ─── Public report sharing ─────────────────────────────────────
+
+def _share_url(share_token: str) -> str:
+    base = (settings.FRONTEND_URL or "").rstrip("/")
+    return f"{base}/report/{share_token}"
+
+
+@router.post("/{session_id}/share")
+async def create_share_link(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate (or return existing) public share token for an interview report."""
+    result = await db.execute(
+        select(InterviewSession).where(
+            InterviewSession.id == session_id,
+            InterviewSession.org_id == current_user["org_id"],
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, detail="Interview not found")
+
+    if not session.share_token:
+        session.share_token = uuid.uuid4().hex
+        await db.commit()
+        await db.refresh(session)
+
+    return {"share_token": session.share_token, "share_url": _share_url(session.share_token)}
+
+
+@router.delete("/{session_id}/share", status_code=204)
+async def revoke_share_link(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Revoke a report's public share link."""
+    result = await db.execute(
+        select(InterviewSession).where(
+            InterviewSession.id == session_id,
+            InterviewSession.org_id == current_user["org_id"],
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, detail="Interview not found")
+    session.share_token = None
+    await db.commit()
+    return None
+
+
+@router.get("/shared/{share_token}")
+async def get_shared_report(share_token: str, db: AsyncSession = Depends(get_db)):
+    """
+    Public, read-only interview report — no authentication.
+    Returns evaluation data only; PII (email/phone) and internal tokens are redacted.
+    """
+    result = await db.execute(
+        select(InterviewSession).where(InterviewSession.share_token == share_token)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, detail="Report not found or sharing has been disabled")
+
+    candidate = (await db.execute(
+        select(Candidate).where(Candidate.id == session.candidate_id)
+    )).scalar_one_or_none()
+
+    job_title = session.custom_job_title
+    if not job_title and session.job_id:
+        job = (await db.execute(
+            select(JobDescription).where(JobDescription.id == session.job_id)
+        )).scalar_one_or_none()
+        job_title = job.title if job else None
+    if not job_title and candidate:
+        job_title = candidate.applied_role
+
+    org = (await db.execute(
+        select(Organization).where(Organization.id == session.org_id)
+    )).scalar_one_or_none()
+
+    evals = (await db.execute(
+        select(SkillEvaluation).where(SkillEvaluation.session_id == session.id)
+    )).scalars().all()
+
+    return {
+        "candidate_name": candidate.name if candidate else "Candidate",
+        "job_title": job_title or "Interview",
+        "org_name": org.name if org else None,
+        "status": session.status,
+        "evaluation_status": session.evaluation_status or "pending",
+        "overall_rating": session.overall_rating,
+        "ai_summary": session.ai_summary,
+        "executive_summary": session.executive_summary,
+        "strengths": session.strengths or [],
+        "weak_areas": session.weak_areas or [],
+        "communication_score": session.communication_score,
+        "confidence_score": session.confidence_score,
+        "clarity_score": session.clarity_score,
+        "topics_covered": session.topics_covered or [],
+        "topics_missing": session.topics_missing or [],
+        "topics_needs_evaluation": session.topics_needs_evaluation or [],
+        "resume_claim_verification": session.resume_claim_verification or [],
+        "candidate_questions": session.candidate_questions or [],
+        "interview_timeline": session.interview_timeline or [],
+        "skill_evaluations": [
+            {"skill": e.skill, "rating": e.rating, "score": e.score,
+             "questions_asked": e.questions_asked, "ai_notes": e.ai_notes}
+            for e in evals
+        ],
+        "actual_duration_minutes": session.actual_duration_minutes,
+        "duration_minutes": session.duration_minutes,
+        "difficulty": session.difficulty,
+        "interview_type": session.interview_type,
+        "started_at": session.started_at.isoformat() if session.started_at else None,
+        "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+        # Transcript intentionally omitted from public report (privacy).
+    }
 
 
 @router.put("/{session_id}/status")

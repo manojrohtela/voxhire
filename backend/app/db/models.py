@@ -260,6 +260,8 @@ class InterviewSession(Base):
     duration_minutes: Mapped[int] = mapped_column(Integer, default=45)
     interview_link: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     link_token: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
+    # Public, revocable token for sharing the read-only report (no login required)
+    share_token: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
 
     # Interview configuration
     interview_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)   # Technical/HR/Leadership/Sales
