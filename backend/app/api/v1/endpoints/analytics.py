@@ -6,7 +6,7 @@ estimated client-side. Powers the dashboard + the YC/customer "numbers".
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, func
+from sqlalchemy import select, func, literal_column
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
@@ -89,11 +89,14 @@ async def analytics_overview(current_user: dict = Depends(get_current_user), db:
 
     # Interviews per week (last 8 weeks)
     since = datetime.now(timezone.utc) - timedelta(weeks=8)
+    # Use a SQL literal for 'week' (not a bind param) and one expression object so
+    # the GROUP BY / ORDER BY match the SELECT.
+    week_expr = func.date_trunc(literal_column("'week'"), InterviewSession.created_at)
     week_rows = (await db.execute(
-        select(func.date_trunc("week", InterviewSession.created_at), func.count())
+        select(week_expr, func.count())
         .where(InterviewSession.org_id == org, InterviewSession.created_at >= since)
-        .group_by(func.date_trunc("week", InterviewSession.created_at))
-        .order_by(func.date_trunc("week", InterviewSession.created_at))
+        .group_by(week_expr)
+        .order_by(week_expr)
     )).all()
     interviews_by_week = [
         {"week": (w.date().isoformat() if hasattr(w, "date") else str(w)), "count": n}
