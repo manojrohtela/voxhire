@@ -190,6 +190,9 @@ export const interviewsApi = {
   revokeShareLink: (id: string) =>
     request(`/api/v1/interviews/${id}/share`, { method: "DELETE" }),
 
+  reevaluate: (id: string) =>
+    request<{ ok: boolean; evaluation_status: string }>(`/api/v1/interviews/${id}/reevaluate`, { method: "POST" }),
+
   // Public, no-auth fetch of a shared report
   getSharedReport: (shareToken: string) =>
     fetch(`${API_URL}/api/v1/interviews/shared/${shareToken}`, {

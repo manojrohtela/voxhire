@@ -506,6 +506,48 @@ async def revoke_share_link(
     return None
 
 
+@router.post("/{session_id}/reevaluate")
+async def reevaluate_interview(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Re-run AI evaluation for an interview whose evaluation failed or got stuck
+    in 'processing' (e.g. a server restart mid-evaluation). Requires a transcript.
+    """
+    result = await db.execute(
+        select(InterviewSession).where(
+            InterviewSession.id == session_id,
+            InterviewSession.org_id == current_user["org_id"],
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, detail="Interview not found")
+
+    if not session.vapi_transcript:
+        raise HTTPException(400, detail="No transcript available to evaluate")
+
+    # Clear any prior skill rows so a retry doesn't duplicate them.
+    await db.execute(
+        SkillEvaluation.__table__.delete().where(SkillEvaluation.session_id == session_id)
+    )
+    session.evaluation_status = "processing"
+    await db.commit()
+
+    # Reuse the same evaluation path the webhook uses (durable queue or in-process).
+    import asyncio
+    from app.modules.queue.client import try_enqueue
+    from app.api.v1.endpoints.interview_vapi import _run_evaluation_task
+
+    queued = await try_enqueue("run_evaluation_task", session.id)
+    if not queued:
+        asyncio.create_task(_run_evaluation_task(session_id=session.id))
+
+    return {"ok": True, "evaluation_status": "processing", "queued": queued}
+
+
 @router.get("/shared/{share_token}")
 async def get_shared_report(share_token: str, db: AsyncSession = Depends(get_db)):
     """

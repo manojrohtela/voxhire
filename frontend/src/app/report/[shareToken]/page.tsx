@@ -47,6 +47,8 @@ export default function SharedReportPage({ params }: { params: { shareToken: str
     );
   }
 
+  const notReady = report.evaluation_status !== "complete";
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Branded public header */}
@@ -59,7 +61,20 @@ export default function SharedReportPage({ params }: { params: { shareToken: str
         )}
       </div>
 
-      <InterviewReportView report={report} publicBranding />
+      {notReady ? (
+        <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-surface border border-base flex items-center justify-center mb-4 mx-auto">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+          <h1 className="text-foreground text-lg font-semibold mb-1">Report is being prepared</h1>
+          <p className="text-foreground-3 text-sm max-w-sm mx-auto">
+            The AI is still scoring this interview{report.candidate_name ? ` for ${report.candidate_name}` : ""}.
+            Check back in a few minutes.
+          </p>
+        </div>
+      ) : (
+        <InterviewReportView report={report} publicBranding />
+      )}
     </div>
   );
 }

@@ -114,6 +114,7 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pollingCount, setPollingCount] = useState(0);
+  const [retrying, setRetrying] = useState(false);
 
   const fetchReport = useCallback(async () => {
     try {
@@ -164,6 +165,23 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
   }
 
   const isProcessing = report.evaluation_status === "processing";
+  const evalFailed = report.evaluation_status === "failed";
+  const evalStalled = isProcessing && pollingCount > 30; // polled 5 min, still not done
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      await interviewsApi.reevaluate(report.id);
+      setPollingCount(0);
+      await fetchReport();
+    } catch {
+      /* leave banner in place; user can retry again */
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  const showRetryBanner = evalFailed || evalStalled;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -186,6 +204,35 @@ export default function InterviewReportPage({ params }: { params: { interviewId:
           )}
         </div>
       </div>
+
+      {showRetryBanner && (
+        <div className="max-w-6xl mx-auto px-6 pt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4">
+            <div className="flex items-start gap-3 flex-1">
+              <svg className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              <div>
+                <p className="text-foreground text-sm font-semibold">
+                  {evalFailed ? "Evaluation didn't complete" : "Evaluation is taking longer than expected"}
+                </p>
+                <p className="text-foreground-3 text-xs mt-0.5">
+                  {evalFailed
+                    ? "The AI couldn't finish scoring this interview. The transcript is intact — you can re-run the evaluation."
+                    : "We've stopped auto-refreshing. You can re-run the evaluation or reload the page."}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleRetry}
+              disabled={retrying}
+              className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-gray-900 text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {retrying ? "Re-running…" : "Re-run evaluation"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <InterviewReportView
         report={report}
