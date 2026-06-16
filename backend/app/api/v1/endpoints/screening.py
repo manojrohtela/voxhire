@@ -135,20 +135,30 @@ def _resolve_relative_date(availability_text: str, call_ended_at: datetime) -> O
     base_utc = call_ended_at.replace(tzinfo=timezone.utc) if call_ended_at.tzinfo is None else call_ended_at.astimezone(timezone.utc)
     base_ist = base_utc.astimezone(_IST)
 
-    # ── Extract time (e.g. "4 pm", "10 am", "16:00") ─────────────────────────
+    # ── Extract time (e.g. "4 pm", "10 am", "11:30 am", "16:00") ─────────────
+    # NOTE: capture optional minutes BEFORE am/pm, else "11:30 am" matches the
+    # "30" as the hour → hour=30 → ValueError. (This 500'd the webhook.)
     hour, minute = None, 0
-    m = re.search(r'(\d{1,2})\s*(am|pm)', text)
+    m = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', text)
     if m:
         h = int(m.group(1))
-        if m.group(2) == "pm" and h != 12:
+        minute = int(m.group(2)) if m.group(2) else 0
+        if m.group(3) == "pm" and h != 12:
             h += 12
-        elif m.group(2) == "am" and h == 12:
+        elif m.group(3) == "am" and h == 12:
             h = 0
         hour = h
     else:
         m2 = re.search(r'(\d{1,2}):(\d{2})', text)
         if m2:
             hour, minute = int(m2.group(1)), int(m2.group(2))
+
+    # Defensive: never let a malformed time crash the webhook. An out-of-range
+    # hour falls back to the 10:00 default (via `hour or 10` below).
+    if hour is not None and not (0 <= hour <= 23):
+        hour = None
+    if not (0 <= minute <= 59):
+        minute = 0
 
     # ── Resolve day ───────────────────────────────────────────────────────────
     day_ist = None
@@ -243,8 +253,14 @@ async def _process_screening_result(
 
         candidate_available = bool(structured.get("candidateAvailableForInterview", False))
         if candidate_available:
-            # Validate the requested time is in the future
-            resolved_dt = _resolve_relative_date(sc.interview_availability, sc.ended_at or _utcnow())
+            # Validate the requested time is in the future. Never let date parsing
+            # crash the webhook — a failure here must not undo the COMPLETED status.
+            try:
+                resolved_dt = _resolve_relative_date(sc.interview_availability, sc.ended_at or _utcnow())
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("availability parse failed (%r): %s", sc.interview_availability, exc)
+                resolved_dt = None
             # If the candidate gave a specific time but it resolved to the past, skip auto-schedule
             past_blocked = (resolved_dt is None and bool(sc.interview_availability))
             if past_blocked:
