@@ -202,6 +202,11 @@ export function useVapiInterview({
       if (config.model_override) {
         overrides.model = config.model_override;
       }
+      // Cap call length to the configured interview duration (else Vapi's
+      // ~10-min default ends interviews early).
+      if (config.max_duration_seconds) {
+        overrides.maxDurationSeconds = config.max_duration_seconds;
+      }
       await vapi.start(config.vapi_assistant_id, overrides);
     } catch (err: any) {
       setVapiError(err?.message || "Failed to start interview");

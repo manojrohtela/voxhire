@@ -193,6 +193,7 @@ async def get_vapi_config(
             "metadata": {"sessionId": "test", "linkToken": "test", "test": True},
             "first_message": _build_first_message(cand_name, role, "VoxHire Dev"),
             "first_message_mode": "assistant-speaks-first",
+            "max_duration_seconds": 10 * 60,
             "model_override": _model_override(
                 candidate_name=cand_name,
                 job_title=role,
@@ -281,6 +282,9 @@ async def get_vapi_config(
             variable_values["orgName"],
         ),
         "first_message_mode": "assistant-speaks-first",
+        # Cap the call at the configured interview length (+2 min grace) so Vapi's
+        # default (~10 min) doesn't cut long interviews short. Clamp to Vapi limits.
+        "max_duration_seconds": max(600, min((variable_values["durationMinutes"] + 2) * 60, 43200)),
         "model_override": _model_override(
             candidate_name=variable_values["candidateName"],
             job_title=variable_values["jobTitle"],

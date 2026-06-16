@@ -14,6 +14,24 @@ const VIOLATION_MESSAGES: Record<ViolationType, string> = {
   SCREEN_SHARE_STOP: "Screen sharing was interrupted.",
 };
 
+// Short labels for the termination summary + report.
+const VIOLATION_LABELS: Record<ViolationType, string> = {
+  TAB_SWITCH:        "Switched tabs / left the window",
+  FULLSCREEN_EXIT:   "Exited fullscreen",
+  MULTIPLE_SCREENS:  "Multiple displays connected",
+  DEVTOOLS_OPEN:     "Opened developer tools",
+  COPY_PASTE:        "Used copy / paste",
+  SCREEN_SHARE_STOP: "Stopped screen sharing",
+};
+
+// The rules shown up-front so candidates know what to avoid.
+const PROCTORING_RULES = [
+  "Stay in fullscreen for the whole interview",
+  "Don't switch tabs or leave this window",
+  "Use a single screen — disconnect extra displays",
+  "No copy / paste, and keep developer tools closed",
+];
+
 type InterviewPhase = "intro" | "waiting" | "expired" | "permission" | "active" | "completed" | "terminated";
 
 // Candidates may join up to this long after the scheduled start; after that the link expires.
@@ -148,7 +166,7 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
     onComplete: handleComplete,
   });
 
-  const { isFullscreen, isTerminated, totalViolations, requestFullscreen } = useAntiCheat({
+  const { isFullscreen, isTerminated, totalViolations, violations, requestFullscreen } = useAntiCheat({
     sessionId:     session.sessionId,
     linkToken,
     maxViolations: 5,
@@ -642,6 +660,22 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
                 })}
               </div>
 
+              {/* Proctoring rules — so candidates know what to avoid */}
+              <div className="mt-5 bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3">
+                <p className="text-amber-400/90 text-xs font-semibold mb-2 flex items-center gap-1.5">
+                  <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>shield</span>
+                  This interview is monitored — please:
+                </p>
+                <ul className="space-y-1">
+                  {PROCTORING_RULES.map((r) => (
+                    <li key={r} className="flex items-start gap-2 text-[#999] text-xs">
+                      <span className="text-amber-400/70 mt-px">✓</span>{r}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-[#666] text-[11px] mt-2">5 flags will end the interview automatically.</p>
+              </div>
+
               <div className="mt-6">
                 <button
                   onClick={handleStart}
@@ -736,8 +770,23 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
             Your session was terminated due to multiple policy violations. The recruiter has been notified.
           </p>
           <div className="bg-[#13131a] border border-[#1e1e2e] rounded-xl px-5 py-4 text-left">
-            <p className="text-[#666] text-xs font-medium uppercase tracking-wider mb-2">Violations Recorded</p>
-            <p className="text-red-400 text-sm">{totalViolations} violation{totalViolations !== 1 ? "s" : ""} detected</p>
+            <p className="text-[#666] text-xs font-medium uppercase tracking-wider mb-3">
+              What was flagged ({totalViolations}/5)
+            </p>
+            <ul className="space-y-2">
+              {violations.map((v) => (
+                <li key={v.type} className="flex items-start gap-2 text-sm">
+                  <span className="text-red-400 mt-0.5">•</span>
+                  <span className="text-[#bbb]">
+                    {VIOLATION_LABELS[v.type] ?? v.type}
+                    {v.count > 1 && <span className="text-[#666]"> ×{v.count}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[#555] text-xs mt-3 pt-3 border-t border-[#1e1e2e]">
+              These integrity checks help keep interviews fair. If you believe this was a mistake, contact the recruiter.
+            </p>
           </div>
         </div>
       </div>

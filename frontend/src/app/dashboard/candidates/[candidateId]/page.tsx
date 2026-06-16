@@ -193,7 +193,15 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [c?.id]);
+  }, [c?.id, c?.interview_sessions?.[0]?.id]);
+
+  // Refetch when the tab regains focus, so an interview auto-scheduled by a
+  // screening (in another tab/device) shows up without a manual reload.
+  useEffect(() => {
+    const onFocus = () => refetch();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refetch]);
 
   if (loading) return (
     <div className="min-h-full bg-background flex items-center justify-center">

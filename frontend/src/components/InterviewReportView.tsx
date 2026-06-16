@@ -52,6 +52,7 @@ export interface ReportData {
   candidate_questions: string[];
   interview_timeline: TimelineItem[];
   skill_evaluations: SkillEval[];
+  violations?: { type: string; count: number; timestamp_seconds?: number }[];
   transcript?: TranscriptEntry[];
   actual_duration_minutes: number | null;
   duration_minutes: number;
@@ -73,6 +74,15 @@ const RATING_CONFIG = {
 function getRatingConfig(rating: string | null) {
   return RATING_CONFIG[rating as keyof typeof RATING_CONFIG] ?? RATING_CONFIG["Consider"];
 }
+
+const VIOLATION_LABELS: Record<string, string> = {
+  TAB_SWITCH:        "Switched tabs / left window",
+  FULLSCREEN_EXIT:   "Exited fullscreen",
+  MULTIPLE_SCREENS:  "Multiple displays connected",
+  DEVTOOLS_OPEN:     "Opened developer tools",
+  COPY_PASTE:        "Used copy / paste",
+  SCREEN_SHARE_STOP: "Stopped screen sharing",
+};
 
 function initials(name?: string | null): string {
   if (!name) return "C";
@@ -341,6 +351,30 @@ export default function InterviewReportView({
               </div>
             </div>
           )}
+
+          {/* Proctoring / integrity (recruiter view — omitted from public reports) */}
+          {(report.violations?.length ?? 0) > 0 && (() => {
+            const total = report.violations!.reduce((s, v) => s + (v.count || 0), 0);
+            return (
+              <div className="bg-surface border border-red-500/20 rounded-2xl p-5">
+                <h2 className="text-foreground font-semibold text-sm mb-4 flex items-center gap-2">
+                  <div className="w-1 h-4 bg-red-500 rounded-full" />
+                  Integrity & Proctoring
+                  <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-medium">
+                    {total} flag{total !== 1 ? "s" : ""}
+                  </span>
+                </h2>
+                <div className="space-y-2">
+                  {report.violations!.map((v, i) => (
+                    <div key={i} className="flex items-center justify-between gap-3 p-3 bg-surface-hi border border-base rounded-xl">
+                      <span className="text-foreground-2 text-xs">{VIOLATION_LABELS[v.type] ?? v.type}</span>
+                      <span className="text-red-400 text-xs font-semibold shrink-0">×{v.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Transcript (authenticated view only — omitted from public reports) */}
           {hasTranscript && (
