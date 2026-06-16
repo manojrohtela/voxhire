@@ -346,6 +346,59 @@ async def _process_screening_result(
 
 # ─── Webhook ───────────────────────────────────────────────────
 
+# Field names we expect inside a screening structured-data result.
+_SCREENING_FIELDS = {
+    "callOutcome", "screeningCompleted", "workMode", "currentCTC", "currentRole",
+    "expectedCTC", "callbackDate", "callbackTime", "noticePeriod", "additionalNotes",
+    "candidateIntent", "totalExperience", "interviewAvailability", "candidateQuestion",
+    "callSummary", "candidateAvailableForInterview",
+}
+
+
+def _extract_structured_data(message: dict) -> dict:
+    """
+    Pull screening fields out of a Vapi end-of-call report, tolerant of every
+    shape Vapi uses depending on assistant config:
+      - analysis.structuredData       → flat {field: value}, or wrapped {id: {name, result}}
+      - analysis.structuredDataMulti  → [{name, result}] OR {id: {name, result}}
+      - artifact.structuredOutputs    → {stepId: {name, result}}
+    Merges every discovered result object into one flat dict.
+    """
+    analysis = message.get("analysis") or {}
+    merged: dict = {}
+
+    def absorb(obj) -> None:
+        if not isinstance(obj, dict):
+            return
+        if isinstance(obj.get("result"), dict):
+            merged.update(obj["result"])
+        elif _SCREENING_FIELDS & obj.keys():
+            merged.update(obj)
+        else:
+            # Wrapper keyed by id whose values are {name, result} / flat results.
+            for v in obj.values():
+                if isinstance(v, dict):
+                    absorb(v)
+
+    # 1. Flat (or wrapped) structuredData
+    absorb(analysis.get("structuredData"))
+
+    # 2. structuredDataMulti — list or id-keyed dict of {name, result}
+    sdm = analysis.get("structuredDataMulti")
+    if isinstance(sdm, list):
+        for item in sdm:
+            absorb(item)
+    elif isinstance(sdm, dict):
+        absorb(sdm)
+
+    # 3. Fallback: artifact.structuredOutputs
+    if not merged:
+        artifact = message.get("artifact") or {}
+        absorb(artifact.get("structuredOutputs"))
+
+    return merged
+
+
 @router.post("/webhook", status_code=200)
 async def vapi_webhook(
     request: Request,
@@ -372,28 +425,9 @@ async def vapi_webhook(
     vapi_call_id = (message.get("call") or {}).get("id") or message.get("callId", "")
     ended_reason = message.get("endedReason", "")
 
-    # Extract structured data — Vapi puts it in one of two locations depending on assistant config:
-    # 1. analysis.structuredData (Analysis feature)
-    # 2. artifact.structuredOutputs[stepId].result (Structured Outputs step feature)
-    analysis = message.get("analysis", {}) or {}
-    structured = analysis.get("structuredData", {}) or {}
-
-    # If analysis.structuredData is empty, fall back to artifact.structuredOutputs
-    if not structured:
-        artifact = message.get("artifact", {}) or {}
-        step_outputs = artifact.get("structuredOutputs", {}) or {}
-        for val in step_outputs.values():
-            if isinstance(val, dict) and "result" in val:
-                structured = val["result"]
-                break
-
-    # Vapi sometimes wraps structured data as {stepId: {name: "...", result: {...}}}
-    # Unwrap if the top-level keys don't look like our field names
-    if structured and not structured.get("callOutcome") and not structured.get("screeningCompleted"):
-        for val in structured.values():
-            if isinstance(val, dict) and "result" in val:
-                structured = val["result"]
-                break
+    # Extract structured data — tolerant of structuredData / structuredDataMulti /
+    # artifact.structuredOutputs, flat or {id: {name, result}} wrapped.
+    structured = _extract_structured_data(message)
 
     call_outcome = structured.get("callOutcome", "")
     screening_completed = bool(structured.get("screeningCompleted", False))
