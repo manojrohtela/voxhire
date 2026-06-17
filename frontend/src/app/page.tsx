@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import VisitorCount from "@/components/VisitorCount";
 
 const FEATURES = [
   {
@@ -111,6 +112,10 @@ export default function Home() {
               </Link>
             </div>
             <p className="text-xs text-gray-400">No signup required to try the demo.</p>
+
+            <div className="pt-4 flex justify-center">
+              <VisitorCount />
+            </div>
           </div>
         </section>
 
