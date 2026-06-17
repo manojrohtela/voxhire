@@ -920,6 +920,7 @@ async def start_invite_screening(
             "vapi_public_key": settings.VAPI_PUBLIC_KEY,
             "vapi_assistant_id": settings.VAPI_ASSISTANT_ID,
             "metadata": {"screeningCallId": "test", "test": True},
+            "max_duration_seconds": 5 * 60,  # demo cap so testers can't run long sessions
         }
 
     result = await db.execute(

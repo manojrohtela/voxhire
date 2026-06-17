@@ -193,7 +193,7 @@ async def get_vapi_config(
             "metadata": {"sessionId": "test", "linkToken": "test", "test": True},
             "first_message": _build_first_message(cand_name, role, "VoxHire Dev"),
             "first_message_mode": "assistant-speaks-first",
-            "max_duration_seconds": 10 * 60,
+            "max_duration_seconds": 5 * 60,  # demo cap so testers can't run long sessions
             "model_override": _model_override(
                 candidate_name=cand_name,
                 job_title=role,

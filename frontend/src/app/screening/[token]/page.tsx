@@ -22,6 +22,7 @@ interface VapiConfig {
   vapi_assistant_id: string;
   screening_call_id: string;
   metadata: Record<string, string>;
+  max_duration_seconds?: number;
 }
 
 interface TranscriptLine {
@@ -232,6 +233,7 @@ export default function ScreeningPage({ params }: { params: { token: string } })
       const vapiCall = await vapi.start(config.vapi_assistant_id, {
         metadata: config.metadata,
         silenceTimeoutSeconds: 90,
+        ...(config.max_duration_seconds ? { maxDurationSeconds: config.max_duration_seconds } : {}),
         transcriber: {
           provider: "deepgram",
           model: "nova-3-general",
