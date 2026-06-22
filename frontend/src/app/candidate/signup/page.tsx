@@ -12,45 +12,84 @@ const BENEFITS = [
   { icon: "⚡", title: "Apply faster, everywhere", body: "Your details autofill for future roles — one profile, many companies." },
 ];
 
+const TREND = [
+  { label: "1st", h: 42, c: "from-sky-400 to-sky-500" },
+  { label: "2nd", h: 56, c: "from-violet-400 to-violet-500" },
+  { label: "3rd", h: 64, c: "from-fuchsia-400 to-fuchsia-500" },
+  { label: "4th", h: 78, c: "from-amber-400 to-orange-500" },
+  { label: "Now", h: 92, c: "from-emerald-400 to-emerald-500" },
+];
+
 function BenefitsPanel() {
   return (
-    <div className="relative hidden lg:flex flex-col justify-center p-10 xl:p-14 text-white overflow-hidden"
-      style={{ background: "linear-gradient(135deg, #4F46E5 0%, #6C63FF 55%, #7c3aed 100%)" }}>
-      <div className="absolute -top-24 -right-24 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
-      <div className="relative z-10 max-w-md">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center font-bold">V</div>
+    <div className="relative hidden lg:flex flex-col justify-center p-10 xl:p-12 text-white overflow-hidden"
+      style={{ background: "linear-gradient(135deg, #4338ca 0%, #7c3aed 45%, #db2777 100%)" }}>
+      {/* colorful decorative blobs */}
+      <div className="absolute -top-20 -right-16 w-72 h-72 bg-cyan-400/25 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 -left-20 w-72 h-72 bg-amber-400/20 rounded-full blur-3xl" />
+      <div className="absolute top-1/3 right-1/4 w-56 h-56 bg-emerald-400/15 rounded-full blur-3xl" />
+
+      <div className="relative z-10 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-bold">V</div>
           <span className="font-semibold">VoxHire</span>
         </div>
-        <h2 className="text-3xl xl:text-4xl font-bold leading-tight mb-3">Your hiring journey,<br/>all in one place.</h2>
-        <p className="text-white/80 mb-8">Create a free candidate account and stay on top of every application — across every company.</p>
+        <h2 className="text-3xl xl:text-[2.4rem] font-bold leading-[1.1] mb-2">
+          Watch yourself <span className="bg-gradient-to-r from-amber-200 to-emerald-200 bg-clip-text text-transparent">get better.</span>
+        </h2>
+        <p className="text-white/85 text-sm mb-6">Track every application, get feedback after each interview, and grow with every attempt.</p>
 
-        <ul className="space-y-5">
-          {BENEFITS.map((b) => (
-            <li key={b.title} className="flex gap-3">
-              <span className="text-xl shrink-0">{b.icon}</span>
-              <div>
-                <p className="font-semibold text-sm">{b.title}</p>
-                <p className="text-white/75 text-sm leading-relaxed">{b.body}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {/* Tangible preview of what they'll get */}
-        <div className="mt-9 rounded-2xl bg-white/10 backdrop-blur border border-white/15 p-4">
-          <p className="text-white/70 text-[11px] uppercase tracking-wider mb-2">A peek at your results</p>
-          <div className="flex gap-2 mb-3">
-            {[["Communication", 82], ["Confidence", 76], ["Clarity", 80]].map(([l, v]) => (
-              <div key={l as string} className="flex-1 rounded-xl bg-white/10 py-2 text-center">
-                <div className="text-lg font-bold">{v as number}</div>
-                <div className="text-[10px] text-white/70">{l as string}</div>
+        {/* Improvement graph */}
+        <div className="rounded-2xl bg-white/12 backdrop-blur-md border border-white/20 p-4 mb-4 shadow-xl">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-white/80 text-xs font-medium">Your interview scores</p>
+            <span className="text-emerald-200 text-xs font-semibold bg-emerald-400/15 px-2 py-0.5 rounded-full">↑ improving</span>
+          </div>
+          <div className="flex items-end justify-between gap-2 h-28">
+            {TREND.map((b) => (
+              <div key={b.label} className="flex-1 flex flex-col items-center justify-end h-full">
+                <div className={`w-full rounded-t-md bg-gradient-to-t ${b.c}`} style={{ height: `${b.h}%` }} />
+                <span className="text-[10px] text-white/60 mt-1.5">{b.label}</span>
               </div>
             ))}
           </div>
-          <p className="text-emerald-200 text-xs">+ Clear, structured answers with strong examples</p>
         </div>
-        <p className="text-white/55 text-xs mt-6">Free · 30 seconds · your results stay private to you.</p>
+
+        {/* Colorful stat tiles */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {[
+            { v: "All", l: "companies, one place", c: "from-sky-400/30 to-sky-500/10" },
+            { v: "Every", l: "interview, feedback", c: "from-emerald-400/30 to-emerald-500/10" },
+            { v: "Free", l: "30-sec setup", c: "from-amber-400/30 to-orange-500/10" },
+          ].map((s) => (
+            <div key={s.l} className={`rounded-xl bg-gradient-to-br ${s.c} border border-white/15 p-3 text-center`}>
+              <div className="text-base font-extrabold">{s.v}</div>
+              <div className="text-[10px] text-white/75 leading-tight mt-0.5">{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Testimonial */}
+        <div className="rounded-2xl bg-white/12 backdrop-blur-md border border-white/20 p-4">
+          <div className="flex items-center gap-1 mb-2 text-amber-300">{"★★★★★"}</div>
+          <p className="text-white/90 text-sm leading-relaxed">“I finally knew where I stood after every interview — and exactly what to improve. Landed my offer in 3 weeks.”</p>
+          <div className="flex items-center gap-2.5 mt-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-fuchsia-400 to-violet-500 flex items-center justify-center text-xs font-bold">PR</div>
+            <div>
+              <p className="text-sm font-semibold leading-none">Priya R.</p>
+              <p className="text-white/60 text-[11px]">Frontend Engineer</p>
+            </div>
+          </div>
+        </div>
+
+        {/* mock company chips */}
+        <div className="flex items-center gap-2 mt-5">
+          <span className="text-white/50 text-[11px]">Used across</span>
+          {[["A", "bg-rose-400/30"], ["N", "bg-sky-400/30"], ["Z", "bg-emerald-400/30"], ["+", "bg-white/15"]].map(([t, c], i) => (
+            <span key={i} className={`w-6 h-6 rounded-full ${c} border border-white/20 flex items-center justify-center text-[11px] font-bold`}>{t}</span>
+          ))}
+          <span className="text-white/50 text-[11px]">companies</span>
+        </div>
       </div>
     </div>
   );
