@@ -15,7 +15,7 @@ invitation token) so the email is proven and locked.
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-import jwt
+from jose import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
