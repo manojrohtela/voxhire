@@ -50,6 +50,14 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     FROM_EMAIL: str = "noreply@voxhire.ai"
 
+    # Public base URL of THIS backend (for email approve-links, etc.)
+    API_BASE_URL: str = "https://api.heyagenthive.com/voxhire"
+
+    # Phantom licensing
+    PHANTOM_UPI_ID: str = "your-upi-id@bank"        # set to your real UPI id
+    PHANTOM_UPI_NAME: str = "AgentHive"
+    PHANTOM_OWNER_EMAIL: str = ""                    # order alerts (defaults to FROM_EMAIL)
+
     class Config:
         env_file = ".env"
 

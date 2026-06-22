@@ -229,3 +229,26 @@ def send_demo_lead(name: str, email: str, phone: str, message: str) -> bool:
     except Exception as exc:
         logger.error("Failed to send demo lead notification: %s", exc)
         return False
+
+
+def send_email(to_email: str, subject: str, html: str, plain: Optional[str] = None) -> bool:
+    """Generic transactional email. Returns True if sent, False if SMTP off/failed."""
+    if not _smtp_configured() or not to_email:
+        return False
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = settings.FROM_EMAIL or settings.SMTP_USER
+    msg["To"] = to_email
+    msg.attach(MIMEText(plain or subject, "plain"))
+    msg.attach(MIMEText(html, "html"))
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.sendmail(msg["From"], to_email, msg.as_string())
+        return True
+    except Exception as exc:
+        logger.error("send_email failed: %s", exc)
+        return False

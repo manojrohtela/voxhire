@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import resume, auth, candidates, interviews, admin, jobs, screening, voice_ws, interview_vapi, billing, audit, demo, analytics, candidate_portal
+from app.api.v1.endpoints import resume, auth, candidates, interviews, admin, jobs, screening, voice_ws, interview_vapi, billing, audit, demo, analytics, candidate_portal, phantom
 
 api_router = APIRouter()
 
@@ -10,6 +10,7 @@ api_router.include_router(audit.router, prefix="/audit", tags=["Audit"])
 api_router.include_router(demo.router, prefix="/demo", tags=["Demo"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(candidate_portal.router, prefix="/candidate", tags=["Candidate Portal"])
+api_router.include_router(phantom.router, prefix="/phantom", tags=["Phantom Licensing"])
 api_router.include_router(candidates.router, prefix="/candidates", tags=["Candidates"])
 api_router.include_router(interviews.router, prefix="/interviews", tags=["Interviews"])
 api_router.include_router(interview_vapi.router, prefix="/interviews", tags=["Interviews - Vapi"])

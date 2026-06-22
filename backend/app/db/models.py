@@ -639,3 +639,52 @@ class CandidateAccount(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+# ─── Phantom licensing (desktop app: trial + paid keys) ────────
+
+class PhantomMachine(Base):
+    """One row per device (stable OS machine id). Server-side trial clock so
+    reinstalls and local date changes can't reset or extend the free period."""
+    __tablename__ = "phantom_machines"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    machine_id: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    trial_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    license_key_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("phantom_license_keys.id", ondelete="SET NULL"), nullable=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class PhantomLicenseKey(Base):
+    """A lifetime key. Binds to the first machine that activates it (one PC at
+    a time); can be released to move to a new device."""
+    __tablename__ = "phantom_license_keys"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    key: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")   # active | revoked
+    bound_machine_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
+    order_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    price_inr: Mapped[int] = mapped_column(Integer, default=200)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    activated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PhantomOrder(Base):
+    """A UPI purchase awaiting manual confirmation. On approval a key is minted
+    and emailed. (Razorpay can later auto-approve via webhook.)"""
+    __tablename__ = "phantom_orders"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    machine_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    utr: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)   # UPI reference submitted by buyer
+    amount_inr: Mapped[int] = mapped_column(Integer, default=200)
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | approved | rejected
+    approve_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    key_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
