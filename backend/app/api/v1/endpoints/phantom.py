@@ -32,6 +32,9 @@ TRIAL_DAYS = 3
 OFFER_LIMIT = 200      # first 200 keys at the launch price
 OFFER_PRICE = 200      # ₹
 REGULAR_PRICE = 1000   # ₹ after the offer
+# Marketing scarcity: the landing shows fewer "remaining" than reality to create
+# urgency — it starts the displayed counter as if 100 are already claimed.
+DISPLAY_CLAIMED_BASELINE = 100
 
 _KEY_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no ambiguous chars
 
@@ -81,9 +84,16 @@ class ReleaseBody(BaseModel):
 @router.get("/pricing")
 async def pricing(db: AsyncSession = Depends(get_db)):
     price, slots_left = await _current_price(db)
+    issued = OFFER_LIMIT - slots_left
+    claimed_display = min(OFFER_LIMIT, DISPLAY_CLAIMED_BASELINE + issued)
+    left_display = max(0, OFFER_LIMIT - claimed_display)
     return {
         "price_inr": price, "regular_price_inr": REGULAR_PRICE,
         "offer_limit": OFFER_LIMIT, "slots_left": slots_left,
+        # Marketing display (scarcity) — starts near 100 left, ticks down with real sales.
+        "offer_total": OFFER_LIMIT,
+        "offer_left_display": left_display,
+        "offer_claimed_display": claimed_display,
         "upi_id": settings.PHANTOM_UPI_ID, "upi_name": settings.PHANTOM_UPI_NAME,
         "trial_days": TRIAL_DAYS,
     }
