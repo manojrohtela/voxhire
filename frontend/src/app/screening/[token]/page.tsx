@@ -350,6 +350,19 @@ export default function ScreeningPage({ params }: { params: { token: string } })
             </div>
           )}
 
+          {token !== "test" && (
+            <div className="mt-6 bg-[#13131a] border border-[#6c63ff]/30 rounded-xl px-5 py-4 text-left">
+              <p className="text-white text-sm font-semibold mb-1">Track your applications</p>
+              <p className="text-[#888] text-xs mb-3">
+                Create a free candidate account to follow your upcoming interviews and results across every company.
+              </p>
+              <a href={`/candidate/signup?token=${token}`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#6c63ff] hover:bg-[#5a52e0] text-white text-sm font-medium transition-colors">
+                Join VoxHire →
+              </a>
+            </div>
+          )}
+
           {/* Debug log */}
           {debugLog.length > 0 && (
             <div className="mt-4 bg-[#0d0d14] border border-[#1a1a24] rounded-xl p-3 text-left">

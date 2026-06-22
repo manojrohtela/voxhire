@@ -216,6 +216,50 @@ export const jobsApi = {
     request(`/api/v1/jobs/${id}`, { method: "DELETE" }),
 };
 
+// ─── Candidate Portal (separate candidate token) ──────────────
+const CAND_TOKEN_KEY = "candidate_token";
+
+async function candReq<T>(path: string, options: RequestInit = {}, auth = true): Promise<T> {
+  const token = typeof window !== "undefined" ? localStorage.getItem(CAND_TOKEN_KEY) : null;
+  const res = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Request failed" }));
+    const e: any = new Error(typeof err.detail === "string" ? err.detail : "Request failed");
+    e.status = res.status;
+    throw e;
+  }
+  return res.status === 204 ? ({} as T) : res.json();
+}
+
+export const candidateApi = {
+  tokenKey: CAND_TOKEN_KEY,
+  isLoggedIn: () => typeof window !== "undefined" && !!localStorage.getItem(CAND_TOKEN_KEY),
+  logout: () => { if (typeof window !== "undefined") localStorage.removeItem(CAND_TOKEN_KEY); },
+  _save: (t: string) => { if (typeof window !== "undefined") localStorage.setItem(CAND_TOKEN_KEY, t); },
+
+  prefill: (token: string) => candReq<any>(`/api/v1/candidate/prefill/${token}`, {}, false),
+
+  signup: async (body: { token: string; name: string; phone: string; password: string }) => {
+    const r = await candReq<any>("/api/v1/candidate/signup", { method: "POST", body: JSON.stringify(body) }, false);
+    candidateApi._save(r.access_token);
+    return r;
+  },
+  login: async (email: string, password: string) => {
+    const r = await candReq<any>("/api/v1/candidate/login", { method: "POST", body: JSON.stringify({ email, password }) }, false);
+    candidateApi._save(r.access_token);
+    return r;
+  },
+  me: () => candReq<any>("/api/v1/candidate/me"),
+  portal: () => candReq<{ upcoming: any[]; past: any[] }>("/api/v1/candidate/portal"),
+};
+
 // ─── Resume ───────────────────────────────────────────────────
 export const resumeApi = {
   parse: async (file: File) => {

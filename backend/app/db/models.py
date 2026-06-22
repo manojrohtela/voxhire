@@ -622,3 +622,20 @@ class DemoLead(Base):
     message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+# ─── Candidate portal accounts (cross-org, keyed by email) ─────
+
+class CandidateAccount(Base):
+    """A self-service candidate login. Global (NOT org-scoped): one account per
+    email, which aggregates every Candidate row sharing that email across orgs.
+    Email is the immutable identity; name/phone are editable by the candidate."""
+    __tablename__ = "candidate_accounts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

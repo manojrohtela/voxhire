@@ -749,6 +749,19 @@ export default function InterviewPage({ params }: { params: { sessionId: string 
               <span className="text-emerald-400 text-sm font-medium">Submitted</span>
             </div>
           </div>
+
+          {/* Join VoxHire — create a candidate account to track results */}
+          <div className="mt-6 bg-[#13131a] border border-[#6c63ff]/30 rounded-xl px-5 py-4 text-left">
+            <p className="text-white text-sm font-semibold mb-1">Want to track your results?</p>
+            <p className="text-[#888] text-xs mb-3">
+              Create a free candidate account to see your upcoming interviews, screenings, and performance feedback — across every company you apply to.
+            </p>
+            <a href={`/candidate/signup?token=${linkToken}`}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#6c63ff] hover:bg-[#5a52e0] text-white text-sm font-medium transition-colors">
+              Join VoxHire →
+            </a>
+          </div>
+
           <p className="text-[#333] text-xs mt-6">You may close this window.</p>
         </div>
       </div>
