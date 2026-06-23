@@ -29,3 +29,9 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Build artifacts
+frontend/tsconfig.tsbuildinfo
+
+# Downloaded ML model weights (fetched at runtime; ~2MB+ binaries)
+backend/app/modules/voice_runtime/models/
