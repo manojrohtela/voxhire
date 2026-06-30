@@ -44,7 +44,7 @@ export async function generateInterviewReplyStream(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
       temperature: getDynamicTemperature(stageContext),
       max_tokens: 120,   // 80 could truncate; 120 handles natural sentence completion
       stream: true,
