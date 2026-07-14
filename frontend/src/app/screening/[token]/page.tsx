@@ -121,7 +121,7 @@ export default function ScreeningPage({ params }: { params: { token: string } })
       const config = await startScreening(token);
 
       if (!config.vapi_public_key || !config.vapi_assistant_id) {
-        setStartError("Vapi is not configured on the server. Contact support.");
+        setStartError("Voice service is not configured on the server. Contact support.");
         setStarting(false);
         return;
       }

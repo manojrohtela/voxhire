@@ -806,7 +806,7 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                   <div className="bg-surface border border-base rounded-2xl p-10 text-center">
                     <p className="text-4xl mb-3">📨</p>
                     <p className="text-foreground-3 text-sm mb-1">No screening activity yet</p>
-                    <p className="text-foreground-5 text-xs">Click "Send Screening Link" to invite the candidate to a web-based Vapi screening</p>
+                    <p className="text-foreground-5 text-xs">Click "Send Screening Link" to invite the candidate to a web-based AI screening</p>
                   </div>
                 )}
               </>
@@ -829,7 +829,7 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                 <div className="bg-surface border border-base rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-5">
                     <div>
-                      <h2 className="text-foreground text-sm font-semibold">Vapi Interview Configuration</h2>
+                      <h2 className="text-foreground text-sm font-semibold">AI Interview Configuration</h2>
                       <p className="text-foreground-4 text-xs mt-0.5">These values are sent to the AI interviewer when the session starts</p>
                     </div>
                     <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
@@ -850,7 +850,7 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                         placeholder={c.applied_role || "e.g. Senior Python Engineer"}
                         className="w-full bg-surface-hi border border-base rounded-xl px-3 py-2.5 text-sm text-foreground-2 placeholder-foreground-5 focus:outline-none focus:border-violet-500/50 transition-colors"
                       />
-                      <p className="text-foreground-5 text-xs mt-1">What Vapi tells the AI the role is called</p>
+                      <p className="text-foreground-5 text-xs mt-1">What we tell the AI the role is called</p>
                     </div>
 
                     {/* Interview Type */}
@@ -882,7 +882,7 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
                       <label className="text-foreground-4 text-xs font-medium uppercase tracking-wider block mb-1">
                         Required Skills & Focus Areas
                       </label>
-                      <p className="text-foreground-5 text-xs mb-2">Sent as both <code className="bg-ink/10 px-1 rounded">requiredSkills</code> and <code className="bg-ink/10 px-1 rounded">focusAreas</code> to Vapi</p>
+                      <p className="text-foreground-5 text-xs mb-2">Sent as both <code className="bg-ink/10 px-1 rounded">requiredSkills</code> and <code className="bg-ink/10 px-1 rounded">focusAreas</code> to the AI</p>
                       <div className="flex flex-wrap gap-2 mb-3 min-h-[36px] p-3 bg-surface-hi border border-base rounded-xl">
                         {setupSkills.map((skill) => (
                           <span key={skill} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium">
@@ -962,7 +962,7 @@ export default function CandidateDetailPage({ params }: { params: { candidateId:
 
                 {/* Preview card */}
                 <div className="bg-[#0d1117] border border-[#1e1e2e] rounded-2xl p-4">
-                  <p className="text-foreground-4 text-xs font-medium uppercase tracking-wider mb-3">What Vapi will receive</p>
+                  <p className="text-foreground-4 text-xs font-medium uppercase tracking-wider mb-3">What the AI will receive</p>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
                     {[
                       ["jobTitle", setupJobTitle || c.applied_role || "—"],

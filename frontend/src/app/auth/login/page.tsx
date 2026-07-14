@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
-import { DemoGate } from "@/components/DemoGate";
-import { hasDemoVisitor, readDemoVisitor } from "@/lib/demoVisitor";
 
 interface OrgInfo {
   name: string;
@@ -35,12 +33,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [showPass, setShowPass] = useState(false);
-  const [demoOpen, setDemoOpen] = useState(false);
-  const [returningName, setReturningName] = useState<string | null>(null);
   const [org, setOrg]         = useState<OrgInfo | null>(null);
 
-  // Recognise a returning demo visitor (localStorage) so we greet them and skip the gate.
-  useEffect(() => { setReturningName(readDemoVisitor()?.name?.split(/\s+/)[0] ?? null); }, []);
 
   // Detect org slug from subdomain or cookie, then fetch org details
   useEffect(() => {
@@ -67,17 +61,6 @@ export default function LoginPage() {
     }
   };
 
-  const tryDemo = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      await login("demo@voxhire.ai", "ExploreVoxHire1!");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#0f0e14] flex items-center justify-center p-4 overflow-hidden">
@@ -269,30 +252,30 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo */}
+          {/* Sign up — the demo used to be enterable with no account at all
+              (a shared demo@voxhire.ai login behind a name/phone form). Signup
+              is now required, so the only way in is a real account. */}
           <div className="mt-4">
             <div className="flex items-center gap-3 my-4">
               <div className="flex-1 h-px bg-white/10" />
               <span className="text-gray-500 text-xs">or</span>
               <div className="flex-1 h-px bg-white/10" />
             </div>
-            <button
-              type="button"
-              onClick={() => { if (hasDemoVisitor()) { tryDemo(); } else { setDemoOpen(true); } }}
-              disabled={loading}
-              className="w-full h-11 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 border border-white/15 text-white hover:bg-white/5"
+            <a
+              href="/auth/signup"
+              className="w-full h-11 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all active:scale-[0.98] border border-white/15 text-white hover:bg-white/5"
             >
-              {returningName ? `🚀 Welcome back, ${returningName} — enter the demo` : "🚀 Explore the live demo — no signup"}
-            </button>
-            <p className="text-center text-gray-500 text-xs mt-2">A sample organization with candidates, interviews & reports.</p>
+              ✨ Create your organization — free
+            </a>
+            <p className="text-center text-gray-500 text-xs mt-2">Set up your workspace in under a minute.</p>
           </div>
 
           {/* Footer */}
           <div className="mt-6 pt-5 border-t border-white/5 flex flex-col items-center gap-3">
             <p className="text-gray-500 text-sm">
               New here?{" "}
-              <a href="mailto:hello@voxhire.com" className="text-gray-300 hover:text-indigo-400 transition-colors font-medium">
-                Contact sales for access
+              <a href="/auth/signup" className="text-gray-300 hover:text-indigo-400 transition-colors font-medium">
+                Create an account
               </a>
             </p>
             <div className="flex items-center gap-4 text-gray-600 text-xs">
@@ -316,8 +299,6 @@ export default function LoginPage() {
           <span className="text-gray-400 text-[11px] tracking-widest uppercase">Enterprise Secure</span>
         </div>
       </div>
-
-      <DemoGate open={demoOpen} onClose={() => setDemoOpen(false)} onEnter={tryDemo} />
     </div>
   );
 }

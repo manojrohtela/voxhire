@@ -348,7 +348,7 @@ function ScheduleContent() {
                     <span className="text-foreground-4 text-xs ml-auto">What should the AI probe?</span>
                   </div>
                   <p className="text-foreground-4 text-xs mb-3 ml-7">
-                    {selectedCandidate ? "Pre-filled from resume — edit as needed." : "Add the skills Vapi should focus on during the interview."}
+                    {selectedCandidate ? "Pre-filled from resume — edit as needed." : "Add the skills the AI should focus on during the interview."}
                   </p>
 
                   {/* Tag input */}

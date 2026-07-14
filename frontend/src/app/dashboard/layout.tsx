@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import DemoBar from "@/components/DemoBar";
 
 interface NavItem { icon: string; label: string; href: string }
 
@@ -74,7 +73,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     : "?";
 
   const orgName = user?.org?.name ?? "Organization";
-  const isDemo = user?.email === "demo@voxhire.ai";
   const navItems = isSuperAdmin ? NAV_ADMIN : NAV_ORG;
 
   return (
@@ -189,7 +187,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Main ── */}
       <main className="flex-1 overflow-y-auto">
-        {isDemo && <DemoBar />}
         {children}
       </main>
     </div>
