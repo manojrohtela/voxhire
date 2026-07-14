@@ -7,7 +7,7 @@ Part of Resume Intelligence Engine — Recruitment Layer (Product 2)
 import json
 import re
 from typing import Optional
-from groq import Groq
+from agenthive_guard import guarded_groq
 from app.core.config import settings
 
 
@@ -115,7 +115,7 @@ def parse_resume_with_groq(resume_text: str) -> dict:
     Extract structured candidate profile from resume text using Groq.
     Returns parsed candidate dict.
     """
-    client = Groq(api_key=settings.GROQ_API_KEY)
+    client = guarded_groq(api_key=settings.GROQ_API_KEY)
 
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
@@ -143,7 +143,7 @@ def get_skill_suggestions(candidate_profile: dict) -> dict:
     Get AI-powered interview skill suggestions based on parsed candidate profile.
     Returns skill suggestions dict.
     """
-    client = Groq(api_key=settings.GROQ_API_KEY)
+    client = guarded_groq(api_key=settings.GROQ_API_KEY)
 
     profile_text = json.dumps(candidate_profile, indent=2)
 

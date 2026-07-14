@@ -377,8 +377,8 @@ def _extract_text_from_file(filename: str, content: bytes) -> str:
 
 
 def _parse_resume_with_groq(text: str) -> dict:
-    from groq import Groq
-    client = Groq(api_key=settings.GROQ_API_KEY)
+    from agenthive_guard import guarded_groq
+    client = guarded_groq(api_key=settings.GROQ_API_KEY)
     prompt = f"""Extract candidate information from this resume. Return ONLY valid JSON, no markdown.
 
 Resume:

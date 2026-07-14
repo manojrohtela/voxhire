@@ -38,8 +38,8 @@ class UpdateJDRequest(BaseModel):
 
 def parse_jd_with_groq(title: str, raw_text: str) -> dict:
     """Parse JD text and extract structured fields using Groq llama."""
-    from groq import Groq
-    client = Groq(api_key=settings.GROQ_API_KEY)
+    from agenthive_guard import guarded_groq
+    client = guarded_groq(api_key=settings.GROQ_API_KEY)
 
     prompt = f"""You are a precise JSON extractor. Parse this job description and return ONLY valid JSON.
 

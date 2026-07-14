@@ -8,6 +8,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.ratelimit import limiter
 from app.db.database import engine
+from agenthive_guard import AgentHiveGuard
 
 # Error monitoring — only active when SENTRY_DSN is set.
 if settings.SENTRY_DSN:
@@ -33,6 +34,19 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Groq metering. VoxHire has its own accounts, so the guard trusts the VoxHire
+# token (VOXHIRE_JWT_SECRET) and meters per ORGANIZATION — recruiters are not
+# asked to sign up a second time.
+#
+# Only the heavy, user-initiated LLM routes are metered. Deliberately EXCLUDED:
+# /interviews/vapi-webhook — it carries no user token, so gating it would meter
+# it as an anonymous device and silently break every interview evaluation.
+app.add_middleware(
+    AgentHiveGuard,
+    agent="voxhire",
+    protect=["/resume/parse", "/candidates/bulk-parse", "/match-jobs"],
 )
 
 # Rate limiting (generous global default; tighter per-endpoint via @limiter.limit)

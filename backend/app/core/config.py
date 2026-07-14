@@ -60,5 +60,9 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        # The shared quota guard reads its own AH_*/VOXHIRE_JWT_SECRET vars from
+        # this same .env. Without "ignore", pydantic rejects them and the app
+        # refuses to start.
+        extra = "ignore"
 
 settings = Settings()
