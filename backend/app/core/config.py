@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     PHANTOM_UPI_NAME: str = "AgentHive"
     PHANTOM_OWNER_EMAIL: str = ""                    # order alerts (defaults to FROM_EMAIL)
 
+    # Demo workspace credentials. Handed out only when we approve a demo request
+    # (the old shared password was public in the JS bundle — never inline it again).
+    DEMO_EMAIL: str = "demo@voxhire.ai"
+    DEMO_PASSWORD: str = ""
+
     class Config:
         env_file = ".env"
         # The shared quota guard reads its own AH_*/VOXHIRE_JWT_SECRET vars from

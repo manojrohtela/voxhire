@@ -1,6 +1,7 @@
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import VisitorCount from "@/components/VisitorCount";
+import DemoButton from "@/components/DemoButton";
 
 const FEATURES = [
   {
@@ -95,15 +96,14 @@ export default function Home() {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <Link
-                href="/auth/login"
+              <DemoButton
                 className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold rounded-lg text-base shadow-lg transition-all duration-200 hover:shadow-indigo-200 dark:hover:shadow-indigo-900 active:scale-[0.98]"
               >
-                Explore the live demo
+                Request a demo
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
-              </Link>
+              </DemoButton>
               <Link
                 href="/auth/login"
                 className="inline-flex items-center gap-2 px-8 py-3.5 border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold rounded-lg text-base transition-colors"
@@ -111,7 +111,7 @@ export default function Home() {
                 Organization login
               </Link>
             </div>
-            <p className="text-xs text-gray-400">No signup required to try the demo.</p>
+            <p className="text-xs text-gray-400">We’ll email you demo access — usually within a few hours.</p>
 
             <div className="pt-4 flex justify-center">
               <VisitorCount />
@@ -158,17 +158,16 @@ export default function Home() {
           <div className="bg-indigo-600 rounded-3xl p-10 text-white">
             <h2 className="text-2xl md:text-3xl font-bold mb-3">See a real interview report in 60 seconds</h2>
             <p className="text-indigo-100 mb-6 max-w-lg mx-auto">
-              Jump into a fully-loaded demo workspace — sample jobs, candidates, and AI-scored reports — no signup.
+              Ask for a demo workspace — sample jobs, candidates, and AI-scored reports. We’ll email you access.
             </p>
-            <Link
-              href="/auth/login"
+            <DemoButton
               className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-indigo-700 font-semibold rounded-lg text-base hover:bg-indigo-50 transition-colors active:scale-[0.98]"
             >
-              Explore the live demo
+              Request a demo
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
               </svg>
-            </Link>
+            </DemoButton>
           </div>
         </section>
       </main>
@@ -195,7 +194,7 @@ export default function Home() {
             <ul className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
               <li><a href="#how" className="hover:text-indigo-600 transition-colors">How it works</a></li>
               <li><a href="#features" className="hover:text-indigo-600 transition-colors">Features</a></li>
-              <li><Link href="/auth/login" className="hover:text-indigo-600 transition-colors">Live demo</Link></li>
+              <li><Link href="/auth/login" className="hover:text-indigo-600 transition-colors">Sign in</Link></li>
             </ul>
           </div>
 
