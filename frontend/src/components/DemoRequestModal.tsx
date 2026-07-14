@@ -104,9 +104,9 @@ export function DemoRequestModal({ open, onClose }: Props) {
                   </div>
                 )}
 
-                <Field label="Your name" value={name} onChange={setName} placeholder="Manoj Kumar" required />
+                <Field label="Your name" value={name} onChange={setName} placeholder="Jane Doe" required />
                 <Field label="Work email" value={email} onChange={setEmail} placeholder="you@company.com" type="email" required />
-                <Field label="Company (optional)" value={company} onChange={setCompany} placeholder="Acme Recruiting" />
+                <Field label="Company (optional)" value={company} onChange={setCompany} placeholder="Acme Inc." />
 
                 <label className="block text-xs font-bold text-[#a9a9bd] mt-3.5 mb-1.5">
                   What would you like to see?
